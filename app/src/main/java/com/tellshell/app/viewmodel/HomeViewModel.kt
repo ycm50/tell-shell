@@ -48,7 +48,8 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val baseUrl = settingsStore.baseUrl.first()
             val apiKey = settingsStore.apiKey.first()
-            deepSeekClient = DeepSeekClient(baseUrl = baseUrl, apiKey = apiKey)
+            val model = settingsStore.model.first()
+            deepSeekClient = DeepSeekClient(baseUrl = baseUrl, apiKey = apiKey, model = model)
         }
     }
 

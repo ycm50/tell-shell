@@ -16,7 +16,8 @@ import java.util.concurrent.TimeUnit
  */
 class DeepSeekClient(
     private val baseUrl: String = "https://api.deepseek.com",
-    private val apiKey: String = ""
+    private val apiKey: String = "",
+    private val model: String = "deepseek-chat"
 ) {
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
@@ -36,7 +37,7 @@ class DeepSeekClient(
         try {
             val prompt = buildPrompt(userInput, appContext)
             val requestBody = ChatCompletionRequest(
-                model = "deepseek-chat",
+                model = model,
                 messages = listOf(
                     Message(role = "system", content = SYSTEM_PROMPT),
                     Message(role = "user", content = prompt)
@@ -85,6 +86,41 @@ class DeepSeekClient(
                 appendLine()
             }
             appendLine("User request: $userInput")
+        }
+    }
+
+    /**
+     * 获取可用模型列表
+     */
+    suspend fun listModels(): Result<List<String>> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("${baseUrl.trimEnd('/')}/v1/models")
+                .addHeader("Authorization", "Bearer $apiKey")
+                .get()
+                .build()
+
+            val response = client.newCall(request).execute()
+            val responseBody = response.body?.string() ?: ""
+
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(
+                    IOException("API error ${response.code}: $responseBody")
+                )
+            }
+
+            val modelResponse = GsonProvider.gson.fromJson(responseBody, ModelListResponse::class.java)
+            val modelIds = modelResponse.data?.map { it.id }?.filter { id ->
+                id.contains("deepseek") || id.contains("chat") || id.contains("reasoner")
+            } ?: emptyList()
+
+            if (modelIds.isEmpty()) {
+                return@withContext Result.failure(IOException("No available models found"))
+            }
+
+            Result.success(modelIds)
+        } catch (e: Exception) {
+            Result.failure(e)
         }
     }
 
@@ -141,6 +177,16 @@ data class Usage(
     val completionTokens: Int = 0,
     @SerializedName("total_tokens")
     val totalTokens: Int = 0
+)
+
+/** 模型列表响应（兼容 OpenAI 格式） */
+data class ModelListResponse(
+    val data: List<ModelInfo>? = null
+)
+
+data class ModelInfo(
+    val id: String,
+    val ownedBy: String? = null
 )
 
 /**

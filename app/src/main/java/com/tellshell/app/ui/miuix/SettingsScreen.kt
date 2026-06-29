@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -28,6 +29,7 @@ import com.tellshell.app.viewmodel.SettingsUiState
 import kotlinx.coroutines.delay
 import top.yukonga.miuix.kmp.basic.Button
 import top.yukonga.miuix.kmp.basic.Icon
+import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
@@ -40,6 +42,8 @@ fun MiuixSettingsScreen(
     onBaseUrlChange: (String) -> Unit,
     onApiKeyChange: (String) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
+    onModelChange: (String) -> Unit,
+    onRefreshModels: () -> Unit,
     onSave: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -84,7 +88,6 @@ fun MiuixSettingsScreen(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // BaseURL — Miuix 用 label 代替 placeholder
             TextField(
                 value = uiState.baseUrl,
                 onValueChange = onBaseUrlChange,
@@ -95,7 +98,6 @@ fun MiuixSettingsScreen(
 
             Spacer(Modifier.height(12.dp))
 
-            // API Key
             TextField(
                 value = uiState.apiKey,
                 onValueChange = onApiKeyChange,
@@ -103,6 +105,49 @@ fun MiuixSettingsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 useLabelAsPlaceholder = true
             )
+
+            Spacer(Modifier.height(24.dp))
+
+            // === 模型选择 ===
+            Text(
+                text = "模型",
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            if (uiState.isLoadingModels) {
+                LinearProgressIndicator(modifier = Modifier.size(24.dp))
+            } else if (uiState.availableModels.isNotEmpty()) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        uiState.availableModels.forEach { model ->
+                            val isSelected = uiState.selectedModel == model
+                            Button(
+                                onClick = { onModelChange(model) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = if (isSelected) "✓ $model" else model
+                                )
+                            }
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    text = uiState.modelError ?: "点击刷新获取模型列表"
+                )
+                Button(
+                    onClick = onRefreshModels,
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Text("刷新模型列表")
+                }
+            }
 
             Spacer(Modifier.height(24.dp))
 

@@ -17,6 +17,10 @@ data class SettingsUiState(
     val baseUrl: String = SettingsStore.DEFAULT_BASE_URL,
     val apiKey: String = "",
     val themeMode: ThemeMode = ThemeMode.MATERIAL3,
+    val selectedModel: String = SettingsStore.DEFAULT_MODEL,
+    val availableModels: List<String> = emptyList(),
+    val isLoadingModels: Boolean = false,
+    val modelError: String? = null,
     val systemPrompt: String = DeepSeekClient.SYSTEM_PROMPT,
     val isSaved: Boolean = false
 )
@@ -37,13 +41,20 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val baseUrl = settingsStore.baseUrl.first()
             val apiKey = settingsStore.apiKey.first()
             val themeMode = settingsStore.themeMode.first()
+            val model = settingsStore.model.first()
 
             _uiState.update {
                 it.copy(
                     baseUrl = baseUrl,
                     apiKey = apiKey,
-                    themeMode = themeMode
+                    themeMode = themeMode,
+                    selectedModel = model
                 )
+            }
+
+            // 如果有 API Key，自动加载模型列表
+            if (apiKey.isNotBlank()) {
+                loadModels(baseUrl, apiKey, model)
             }
         }
     }
@@ -60,11 +71,51 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(themeMode = mode, isSaved = false) }
     }
 
+    fun updateSelectedModel(model: String) {
+        _uiState.update { it.copy(selectedModel = model, isSaved = false) }
+    }
+
+    /** 加载模型列表 */
+    fun loadModels() {
+        val state = _uiState.value
+        loadModels(state.baseUrl, state.apiKey, state.selectedModel)
+    }
+
+    private fun loadModels(baseUrl: String, apiKey: String, currentModel: String) {
+        if (apiKey.isBlank()) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingModels = true, modelError = null) }
+
+            val client = DeepSeekClient(baseUrl = baseUrl, apiKey = apiKey)
+            val result = client.listModels()
+
+            result.onSuccess { models ->
+                val selected = if (currentModel in models) currentModel else models.first()
+                _uiState.update {
+                    it.copy(
+                        availableModels = models,
+                        selectedModel = selected,
+                        isLoadingModels = false
+                    )
+                }
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoadingModels = false,
+                        modelError = "加载模型失败: ${error.message}"
+                    )
+                }
+            }
+        }
+    }
+
     fun saveSettings() {
         viewModelScope.launch {
             val state = _uiState.value
             settingsStore.saveBaseUrl(state.baseUrl)
             settingsStore.saveApiKey(state.apiKey)
+            settingsStore.saveModel(state.selectedModel)
             settingsStore.saveThemeMode(state.themeMode)
             _uiState.update { it.copy(isSaved = true) }
         }

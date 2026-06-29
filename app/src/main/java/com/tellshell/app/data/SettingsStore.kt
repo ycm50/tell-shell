@@ -17,8 +17,10 @@ class SettingsStore(private val context: Context) {
         private val KEY_BASE_URL = stringPreferencesKey("base_url")
         private val KEY_API_KEY = stringPreferencesKey("api_key")
         private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
+        private val KEY_MODEL = stringPreferencesKey("model")
 
         const val DEFAULT_BASE_URL = "https://api.deepseek.com"
+        const val DEFAULT_MODEL = "deepseek-chat"
     }
 
     /** BaseURL */
@@ -57,6 +59,17 @@ class SettingsStore(private val context: Context) {
                 ThemeMode.MATERIAL3 -> "material3"
                 ThemeMode.MIUIX -> "miuix"
             }
+        }
+    }
+
+    /** 模型 */
+    val model: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_MODEL] ?: DEFAULT_MODEL
+    }
+
+    suspend fun saveModel(model: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_MODEL] = model
         }
     }
 }

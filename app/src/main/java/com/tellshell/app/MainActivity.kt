@@ -93,11 +93,12 @@ class MainActivity : ComponentActivity() {
                                     onApiKeyChange = viewModel::updateApiKey,
                                     onThemeModeChange = { mode ->
                                         viewModel.updateThemeMode(mode)
-                                        // 实时切换主题：先保存以更新 themeMode StateFlow
                                         scope.launch {
                                             settingsStore.saveThemeMode(mode)
                                         }
                                     },
+                                    onModelChange = viewModel::updateSelectedModel,
+                                    onRefreshModels = viewModel::loadModels,
                                     onSave = {
                                         viewModel.saveSettings()
                                     },
@@ -119,6 +120,8 @@ class MainActivity : ComponentActivity() {
                                             settingsStore.saveThemeMode(mode)
                                         }
                                     },
+                                    onModelChange = viewModel::updateSelectedModel,
+                                    onRefreshModels = viewModel::loadModels,
                                     onSave = {
                                         viewModel.saveSettings()
                                     },
