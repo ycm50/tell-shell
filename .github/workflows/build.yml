@@ -39,6 +39,17 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
+      - name: Generate keystore for APK signing
+        run: |
+          keytool -genkey -v -keystore release.keystore -alias release \
+            -keyalg RSA -keysize 2048 -validity 3650 \
+            -storepass tellshell -keypass tellshell \
+            -dname "CN=TellShell, OU=Dev, O=TellShell, L=City, ST=State, C=CN"
+          echo "KEYSTORE_PATH=${{ github.workspace }}/release.keystore" >> $GITHUB_ENV
+          echo "KEYSTORE_PASSWORD=tellshell" >> $GITHUB_ENV
+          echo "KEY_ALIAS=release" >> $GITHUB_ENV
+          echo "KEY_PASSWORD=tellshell" >> $GITHUB_ENV
+
       - name: Build Release APK (${{ inputs.arch }})
         run: ./gradlew assembleRelease -Pandroid.injected.abifilters=${{ inputs.arch }} --no-configuration-cache
         env:
