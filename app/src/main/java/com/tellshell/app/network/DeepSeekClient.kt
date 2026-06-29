@@ -1,6 +1,7 @@
 package com.tellshell.app.network
 
 import com.google.gson.annotations.SerializedName
+import com.tellshell.app.data.HistoryItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -119,6 +120,79 @@ class DeepSeekClient(
             }
 
             Result.success(modelIds)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 分析历史记录
+     * @param historyItems 要分析的历史条目
+     * @param requirement 用户的分析要求
+     * @param analysisPromptTemplate 分析提示词模板（含 {history} 和 {requirement} 占位符）
+     */
+    suspend fun analyzeHistory(
+        historyItems: List<HistoryItem>,
+        requirement: String,
+        analysisPromptTemplate: String
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            // 构建历史记录文本
+            val historyText = historyItems.joinToString("\n---\n") { item ->
+                buildString {
+                    appendLine("时间: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(item.timestamp))}")
+                    appendLine("自然语言: ${item.naturalInput}")
+                    appendLine("命令: ${item.generatedCommand}")
+                    if (item.commandOutput.isNotBlank()) {
+                        appendLine("输出: ${item.commandOutput.take(200)}")
+                    }
+                    if (item.appContext.isNotBlank()) {
+                        appendLine("选中的应用: ${item.appContext}")
+                    }
+                }
+            }
+
+            // 替换模板中的占位符
+            val prompt = analysisPromptTemplate
+                .replace("{history}", historyText)
+                .replace("{requirement}", requirement)
+
+            val requestBody = ChatCompletionRequest(
+                model = model,
+                messages = listOf(
+                    Message(role = "user", content = prompt)
+                ),
+                temperature = 0.3,
+                maxTokens = 1000
+            )
+
+            val json = GsonProvider.gson.toJson(requestBody)
+            val body = json.toRequestBody(jsonMediaType)
+
+            val request = Request.Builder()
+                .url("${baseUrl.trimEnd('/')}/v1/chat/completions")
+                .addHeader("Authorization", "Bearer $apiKey")
+                .addHeader("Content-Type", "application/json")
+                .post(body)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val responseBody = response.body?.string() ?: ""
+
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(
+                    IOException("API error ${response.code}: $responseBody")
+                )
+            }
+
+            val chatResponse = GsonProvider.gson.fromJson(responseBody, ChatCompletionResponse::class.java)
+            val result = chatResponse.choices?.firstOrNull()?.message?.content?.trim() ?: ""
+
+            if (result.isBlank()) {
+                return@withContext Result.failure(IOException("Empty response from API"))
+            }
+
+            Result.success(result)
         } catch (e: Exception) {
             Result.failure(e)
         }

@@ -22,6 +22,7 @@ data class SettingsUiState(
     val isLoadingModels: Boolean = false,
     val modelError: String? = null,
     val systemPrompt: String = DeepSeekClient.SYSTEM_PROMPT,
+    val analysisPrompt: String = SettingsStore.DEFAULT_ANALYSIS_PROMPT,
     val isSaved: Boolean = false
 )
 
@@ -42,13 +43,15 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val apiKey = settingsStore.apiKey.first()
             val themeMode = settingsStore.themeMode.first()
             val model = settingsStore.model.first()
+            val analysisPrompt = settingsStore.analysisPrompt.first()
 
             _uiState.update {
                 it.copy(
                     baseUrl = baseUrl,
                     apiKey = apiKey,
                     themeMode = themeMode,
-                    selectedModel = model
+                    selectedModel = model,
+                    analysisPrompt = analysisPrompt
                 )
             }
 

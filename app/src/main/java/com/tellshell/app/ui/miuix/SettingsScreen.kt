@@ -203,6 +203,30 @@ fun MiuixSettingsScreen(
 
             Spacer(Modifier.height(24.dp))
 
+            Text(
+                text = "分析提示词（只读）",
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(colorScheme.primaryContainer, RoundedCornerShape(8.dp))
+                        .padding(12.dp)
+                ) {
+                    Text(
+                        text = uiState.analysisPrompt,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+
             Button(
                 onClick = onSave,
                 modifier = Modifier.fillMaxWidth()

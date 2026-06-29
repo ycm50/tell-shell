@@ -15,11 +15,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.tellshell.app.data.SettingsStore
 import com.tellshell.app.data.ThemeMode
+import com.tellshell.app.ui.material3.Material3HistoryScreen
 import com.tellshell.app.ui.material3.Material3HomeScreen
 import com.tellshell.app.ui.material3.Material3SettingsScreen
+import com.tellshell.app.ui.miuix.MiuixHistoryScreen
 import com.tellshell.app.ui.miuix.MiuixHomeScreen
 import com.tellshell.app.ui.miuix.MiuixSettingsScreen
 import com.tellshell.app.ui.theme.AppTheme
+import com.tellshell.app.viewmodel.HistoryViewModel
 import com.tellshell.app.viewmodel.HomeViewModel
 import com.tellshell.app.viewmodel.SettingsViewModel
 import kotlinx.coroutines.launch
@@ -57,6 +60,9 @@ class MainActivity : ComponentActivity() {
                                     onRequestPermission = viewModel::requestPermission,
                                     onClearOutput = viewModel::clearOutput,
                                     onClearCommand = viewModel::clearCommand,
+                                    onNavigateToHistory = {
+                                        navController.navigate("history")
+                                    },
                                     onNavigateToSettings = {
                                         navController.navigate("settings")
                                     }
@@ -72,9 +78,31 @@ class MainActivity : ComponentActivity() {
                                     onRequestPermission = viewModel::requestPermission,
                                     onClearOutput = viewModel::clearOutput,
                                     onClearCommand = viewModel::clearCommand,
+                                    onNavigateToHistory = {
+                                        navController.navigate("history")
+                                    },
                                     onNavigateToSettings = {
                                         navController.navigate("settings")
                                     }
+                                )
+                            }
+                        }
+                    }
+
+                    composable("history") {
+                        val historyViewModel: HistoryViewModel = viewModel()
+
+                        when (themeMode) {
+                            ThemeMode.MATERIAL3 -> {
+                                Material3HistoryScreen(
+                                    viewModel = historyViewModel,
+                                    onBack = { navController.popBackStack() }
+                                )
+                            }
+                            ThemeMode.MIUIX -> {
+                                MiuixHistoryScreen(
+                                    viewModel = historyViewModel,
+                                    onBack = { navController.popBackStack() }
                                 )
                             }
                         }

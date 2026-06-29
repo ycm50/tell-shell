@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tellshell.app.data.AppInfo
+import com.tellshell.app.data.HistoryItem
+import com.tellshell.app.data.HistoryStore
 import com.tellshell.app.data.SettingsStore
 import com.tellshell.app.network.DeepSeekClient
 import com.tellshell.app.shell.ShizukuExecutor
@@ -35,8 +37,10 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private val settingsStore = SettingsStore(application)
+    private val historyStore = HistoryStore(application)
     private val executor = ShizukuExecutor()
     private var deepSeekClient: DeepSeekClient? = null
+    private var lastHistoryItemId: String? = null
 
     init {
         loadAppList()
@@ -130,6 +134,16 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             val result = client.translateToCommand(input, appContext)
             result.onSuccess { command ->
                 _uiState.update { it.copy(generatedCommand = command, isTranslating = false) }
+                // 保存到历史记录
+                val item = HistoryItem(
+                    naturalInput = input,
+                    generatedCommand = command,
+                    appContext = appContext
+                )
+                lastHistoryItemId = item.id
+                viewModelScope.launch {
+                    historyStore.addItem(item)
+                }
             }.onFailure { error ->
                 _uiState.update { it.copy(errorMessage = "翻译失败: ${error.message}", isTranslating = false) }
             }
@@ -146,22 +160,31 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
             val result = executor.execute(command)
 
+            val output = buildString {
+                if (result.stdout.isNotBlank()) {
+                    appendLine(result.stdout)
+                }
+                if (result.stderr.isNotBlank()) {
+                    appendLine("stderr: ${result.stderr}")
+                }
+                append("exit code: ${result.exitCode}")
+            }
             _uiState.update {
                 it.copy(
-                    commandOutput = buildString {
-                        if (result.stdout.isNotBlank()) {
-                            appendLine(result.stdout)
-                        }
-                        if (result.stderr.isNotBlank()) {
-                            appendLine("stderr: ${result.stderr}")
-                        }
-                        append("exit code: ${result.exitCode}")
-                    },
+                    commandOutput = output,
                     isExecuting = false,
                     errorMessage = if (result.exitCode != 0 && result.stderr.isNotBlank()) {
                         "命令执行异常 (exit=$result.exitCode)"
                     } else null
                 )
+            }
+            // 更新历史记录中的输出
+            lastHistoryItemId?.let { id ->
+                historyStore.historyItems.first().find { it.id == id }?.let { item ->
+                    viewModelScope.launch {
+                        historyStore.updateItem(item.copy(commandOutput = output))
+                    }
+                }
             }
         }
     }

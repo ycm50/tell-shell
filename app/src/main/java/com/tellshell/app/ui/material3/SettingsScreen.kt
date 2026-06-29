@@ -240,6 +240,34 @@ fun Material3SettingsScreen(
 
             Spacer(Modifier.height(24.dp))
 
+            // === 分析提示词 ===
+            Text(
+                text = "分析提示词（只读）",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(8.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(8.dp),
+                colors = CardDefaults.cardColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer
+                )
+            ) {
+                Text(
+                    text = uiState.analysisPrompt,
+                    modifier = Modifier.padding(12.dp),
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        fontFamily = FontFamily.Monospace,
+                        fontSize = MaterialTheme.typography.bodySmall.fontSize
+                    ),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            }
+
+            Spacer(Modifier.height(24.dp))
+
             // === 保存按钮 ===
             Button(
                 onClick = onSave,

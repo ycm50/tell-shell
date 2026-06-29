@@ -18,9 +18,21 @@ class SettingsStore(private val context: Context) {
         private val KEY_API_KEY = stringPreferencesKey("api_key")
         private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         private val KEY_MODEL = stringPreferencesKey("model")
+        private val KEY_ANALYSIS_PROMPT = stringPreferencesKey("analysis_prompt")
 
         const val DEFAULT_BASE_URL = "https://api.deepseek.com"
         const val DEFAULT_MODEL = "deepseek-chat"
+
+        const val DEFAULT_ANALYSIS_PROMPT = """你是一个 Android 操作历史分析助手。用户会提供一段历史操作记录（包含自然语言描述和实际执行的 shell 命令），以及用户的分析要求。
+
+请根据用户要求，对历史记录进行分析和总结。
+
+分析要求：{requirement}
+
+历史记录：
+{history}
+
+请直接给出分析结果，不要添加无关的解释。"""
     }
 
     /** BaseURL */
@@ -70,6 +82,17 @@ class SettingsStore(private val context: Context) {
     suspend fun saveModel(model: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_MODEL] = model
+        }
+    }
+
+    /** 分析提示词 */
+    val analysisPrompt: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_ANALYSIS_PROMPT] ?: DEFAULT_ANALYSIS_PROMPT
+    }
+
+    suspend fun saveAnalysisPrompt(prompt: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_ANALYSIS_PROMPT] = prompt
         }
     }
 }
