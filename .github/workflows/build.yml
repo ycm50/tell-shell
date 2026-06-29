@@ -46,8 +46,9 @@ jobs:
 
       - name: Rename APK
         run: |
-          mv app/build/outputs/apk/release/app-release.apk \
-             app/build/outputs/apk/release/TellShell-${{ inputs.tag }}-${{ inputs.arch }}.apk
+          apk=$(find app/build/outputs/apk/release -name "*.apk" | head -1)
+          echo "Found APK: $apk"
+          mv "$apk" app/build/outputs/apk/release/TellShell-${{ inputs.tag }}-${{ inputs.arch }}.apk
 
       - name: Create Release & Upload APK
         uses: softprops/action-gh-release@v2
