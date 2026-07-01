@@ -33,14 +33,15 @@ class DeepSeekClient(
      */
     suspend fun translateToCommand(
         userInput: String,
-        appContext: String = ""
+        appContext: String = "",
+        systemPrompt: String = SYSTEM_PROMPT
     ): Result<String> = withContext(Dispatchers.IO) {
         try {
             val prompt = buildPrompt(userInput, appContext)
             val requestBody = ChatCompletionRequest(
                 model = model,
                 messages = listOf(
-                    Message(role = "system", content = SYSTEM_PROMPT),
+                    Message(role = "system", content = systemPrompt),
                     Message(role = "user", content = prompt)
                 ),
                 temperature = 0.1,

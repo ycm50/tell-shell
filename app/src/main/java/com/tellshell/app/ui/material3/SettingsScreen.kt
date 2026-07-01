@@ -39,7 +39,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.tellshell.app.data.ThemeMode
 import com.tellshell.app.viewmodel.SettingsUiState
@@ -126,7 +125,6 @@ fun Material3SettingsScreen(
                 ),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
                 placeholder = { Text("sk-xxxxxxxxxxxxxxxx") }
             )
 

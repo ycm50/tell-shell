@@ -145,7 +145,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 "- ${app?.appName ?: pkg} ($pkg)"
             }
 
-            val result = client.translateToCommand(input, appContext)
+            // 读取用户保存的自定义系统提示词，为空则使用默认值
+            val systemPrompt = settingsStore.systemPrompt.first()
+                .ifBlank { DeepSeekClient.SYSTEM_PROMPT }
+
+            val result = client.translateToCommand(input, appContext, systemPrompt)
             result.onSuccess { command ->
                 _uiState.update { it.copy(generatedCommand = command, isTranslating = false) }
                 // 保存到历史记录

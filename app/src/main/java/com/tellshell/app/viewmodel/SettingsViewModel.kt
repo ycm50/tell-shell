@@ -52,7 +52,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     apiKey = apiKey,
                     themeMode = themeMode,
                     selectedModel = model,
-                    systemPrompt = userSystemPrompt ?: DeepSeekClient.SYSTEM_PROMPT,
+                    systemPrompt = userSystemPrompt.ifBlank { DeepSeekClient.SYSTEM_PROMPT },
                     analysisPrompt = analysisPrompt
                 )
             }

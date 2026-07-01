@@ -209,7 +209,8 @@ fun MiuixHomeScreen(
                     colors = TextFieldDefaults.textFieldColors(borderColor = Color.Black),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 56.dp, max = 200.dp),
+                        .heightIn(max = 200.dp),
+                    minLines = 3,
                     label = "输入自然语言，如：禁用 kindle",
                     useLabelAsPlaceholder = true,
                     enabled = !uiState.isTranslating

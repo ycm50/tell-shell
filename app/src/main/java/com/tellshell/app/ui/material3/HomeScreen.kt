@@ -216,7 +216,8 @@ fun Material3HomeScreen(
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 56.dp, max = 200.dp),
+                        .heightIn(max = 200.dp),
+                    minLines = 3,
                     placeholder = { Text("输入自然语言，如：禁用 kindle") },
                     enabled = !uiState.isTranslating
                 )
