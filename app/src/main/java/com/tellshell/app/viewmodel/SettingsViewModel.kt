@@ -43,6 +43,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val apiKey = settingsStore.apiKey.first()
             val themeMode = settingsStore.themeMode.first()
             val model = settingsStore.model.first()
+            val userSystemPrompt = settingsStore.systemPrompt.first()
             val analysisPrompt = settingsStore.analysisPrompt.first()
 
             _uiState.update {
@@ -51,6 +52,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     apiKey = apiKey,
                     themeMode = themeMode,
                     selectedModel = model,
+                    systemPrompt = userSystemPrompt ?: DeepSeekClient.SYSTEM_PROMPT,
                     analysisPrompt = analysisPrompt
                 )
             }
@@ -76,6 +78,14 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun updateSelectedModel(model: String) {
         _uiState.update { it.copy(selectedModel = model, isSaved = false) }
+    }
+
+    fun updateSystemPrompt(prompt: String) {
+        _uiState.update { it.copy(systemPrompt = prompt, isSaved = false) }
+    }
+
+    fun updateAnalysisPrompt(prompt: String) {
+        _uiState.update { it.copy(analysisPrompt = prompt, isSaved = false) }
     }
 
     /** 加载模型列表 */
@@ -120,6 +130,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             settingsStore.saveApiKey(state.apiKey)
             settingsStore.saveModel(state.selectedModel)
             settingsStore.saveThemeMode(state.themeMode)
+            settingsStore.saveSystemPrompt(state.systemPrompt)
+            settingsStore.saveAnalysisPrompt(state.analysisPrompt)
             _uiState.update { it.copy(isSaved = true) }
         }
     }

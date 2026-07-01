@@ -33,6 +33,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.state.ToggleableState
@@ -54,6 +55,7 @@ import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -102,6 +104,7 @@ fun MiuixHistoryScreen(
             TextField(
                 value = uiState.searchQuery,
                 onValueChange = viewModel::updateSearchQuery,
+                colors = TextFieldDefaults.textFieldColors(borderColor = Color.Black),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 8.dp),
@@ -189,6 +192,7 @@ fun MiuixHistoryScreen(
                 TextField(
                     value = uiState.analysisInput,
                     onValueChange = viewModel::updateAnalysisInput,
+                    colors = TextFieldDefaults.textFieldColors(borderColor = Color.Black),
                     modifier = Modifier.fillMaxWidth(),
                     label = "输入分析要求...",
                     useLabelAsPlaceholder = true,

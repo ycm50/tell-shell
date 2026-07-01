@@ -7,13 +7,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -23,6 +20,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -39,6 +37,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -54,6 +53,8 @@ fun Material3SettingsScreen(
     onThemeModeChange: (ThemeMode) -> Unit,
     onModelChange: (String) -> Unit,
     onRefreshModels: () -> Unit,
+    onSystemPromptChange: (String) -> Unit,
+    onAnalysisPromptChange: (String) -> Unit,
     onSave: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -104,6 +105,10 @@ fun Material3SettingsScreen(
                 value = uiState.baseUrl,
                 onValueChange = onBaseUrlChange,
                 label = { Text("BaseURL") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Black,
+                    unfocusedBorderColor = Color.Black
+                ),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 placeholder = { Text(SettingsUiState().baseUrl) }
@@ -115,6 +120,10 @@ fun Material3SettingsScreen(
                 value = uiState.apiKey,
                 onValueChange = onApiKeyChange,
                 label = { Text("API Key") },
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Black,
+                    unfocusedBorderColor = Color.Black
+                ),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
@@ -145,6 +154,10 @@ fun Material3SettingsScreen(
                         onValueChange = {},
                         readOnly = true,
                         label = { Text("选择模型") },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color.Black,
+                            unfocusedBorderColor = Color.Black
+                        ),
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = modelExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -214,64 +227,59 @@ fun Material3SettingsScreen(
 
             // === 系统提示词 ===
             Text(
-                text = "系统提示词（只读）",
+                text = "系统提示词",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
             Spacer(Modifier.height(8.dp))
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                )
-            ) {
-                Text(
-                    text = uiState.systemPrompt,
-                    modifier = Modifier.padding(12.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = MaterialTheme.typography.bodySmall.fontSize
-                    ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
+            OutlinedTextField(
+                value = uiState.systemPrompt,
+                onValueChange = onSystemPromptChange,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Black,
+                    unfocusedBorderColor = Color.Black
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                textStyle = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = FontFamily.Monospace
+                ),
+                singleLine = false
+            )
 
             Spacer(Modifier.height(24.dp))
 
             // === 分析提示词 ===
             Text(
-                text = "分析提示词（只读）",
+                text = "分析提示词",
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.primary
             )
             Spacer(Modifier.height(8.dp))
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(8.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.secondaryContainer
-                )
-            ) {
-                Text(
-                    text = uiState.analysisPrompt,
-                    modifier = Modifier.padding(12.dp),
-                    style = MaterialTheme.typography.bodySmall.copy(
-                        fontFamily = FontFamily.Monospace,
-                        fontSize = MaterialTheme.typography.bodySmall.fontSize
-                    ),
-                    color = MaterialTheme.colorScheme.onSecondaryContainer
-                )
-            }
+            OutlinedTextField(
+                value = uiState.analysisPrompt,
+                onValueChange = onAnalysisPromptChange,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Color.Black,
+                    unfocusedBorderColor = Color.Black
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+                textStyle = MaterialTheme.typography.bodySmall.copy(
+                    fontFamily = FontFamily.Monospace
+                ),
+                singleLine = false
+            )
 
             Spacer(Modifier.height(24.dp))
 
             // === 保存按钮 ===
             Button(
-                onClick = onSave,
-                modifier = Modifier.fillMaxWidth()
+                onClick = onSave
             ) {
                 Text("保存设置")
             }

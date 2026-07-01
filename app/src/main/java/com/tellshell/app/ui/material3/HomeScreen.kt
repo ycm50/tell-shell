@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
@@ -40,6 +41,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -54,6 +56,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
@@ -72,6 +75,7 @@ fun Material3HomeScreen(
     uiState: HomeUiState,
     onToggleApp: (String) -> Unit,
     onInputChange: (String) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
     onTranslate: () -> Unit,
     onExecute: () -> Unit,
     onRequestPermission: () -> Unit,
@@ -160,9 +164,25 @@ fun Material3HomeScreen(
                     .padding(padding)
                     .padding(horizontal = 12.dp)
             ) {
+                // === 应用搜索 ===
+                OutlinedTextField(
+                    value = uiState.searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Black,
+                        unfocusedBorderColor = Color.Black
+                    ),
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("搜索应用") },
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(Icons.Filled.Search, contentDescription = null)
+                    }
+                )
+
                 // === 应用列表（带复选框） ===
                 Text(
-                    text = "已选 ${uiState.selectedPackages.size}/${uiState.appList.size} 个应用",
+                    text = "已选 ${uiState.selectedPackages.size}/${uiState.filteredAppList.size} 个应用",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 4.dp)
@@ -174,8 +194,8 @@ fun Material3HomeScreen(
                         .weight(0.35f),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    items(uiState.appList.size) { index ->
-                        val app = uiState.appList[index]
+                    items(uiState.filteredAppList.size) { index ->
+                        val app = uiState.filteredAppList[index]
                         AppCheckboxItem(
                             app = app,
                             isChecked = app.packageName in uiState.selectedPackages,
@@ -190,9 +210,14 @@ fun Material3HomeScreen(
                 OutlinedTextField(
                     value = uiState.naturalInput,
                     onValueChange = onInputChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Black,
+                        unfocusedBorderColor = Color.Black
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp, max = 200.dp),
                     placeholder = { Text("输入自然语言，如：禁用 kindle") },
-                    singleLine = true,
                     enabled = !uiState.isTranslating
                 )
 

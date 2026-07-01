@@ -55,6 +55,7 @@ class MainActivity : ComponentActivity() {
                                     uiState = uiState,
                                     onToggleApp = viewModel::toggleAppSelection,
                                     onInputChange = viewModel::updateNaturalInput,
+                                    onSearchQueryChange = viewModel::updateSearchQuery,
                                     onTranslate = viewModel::translateToCommand,
                                     onExecute = viewModel::executeCommand,
                                     onRequestPermission = viewModel::requestPermission,
@@ -73,6 +74,7 @@ class MainActivity : ComponentActivity() {
                                     uiState = uiState,
                                     onToggleApp = viewModel::toggleAppSelection,
                                     onInputChange = viewModel::updateNaturalInput,
+                                    onSearchQueryChange = viewModel::updateSearchQuery,
                                     onTranslate = viewModel::translateToCommand,
                                     onExecute = viewModel::executeCommand,
                                     onRequestPermission = viewModel::requestPermission,
@@ -127,6 +129,8 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onModelChange = viewModel::updateSelectedModel,
                                     onRefreshModels = viewModel::loadModels,
+                                    onSystemPromptChange = viewModel::updateSystemPrompt,
+                                    onAnalysisPromptChange = viewModel::updateAnalysisPrompt,
                                     onSave = {
                                         viewModel.saveSettings()
                                     },
@@ -150,6 +154,8 @@ class MainActivity : ComponentActivity() {
                                     },
                                     onModelChange = viewModel::updateSelectedModel,
                                     onRefreshModels = viewModel::loadModels,
+                                    onSystemPromptChange = viewModel::updateSystemPrompt,
+                                    onAnalysisPromptChange = viewModel::updateAnalysisPrompt,
                                     onSave = {
                                         viewModel.saveSettings()
                                     },

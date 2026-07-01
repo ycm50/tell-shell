@@ -36,6 +36,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
@@ -56,6 +57,7 @@ import top.yukonga.miuix.kmp.basic.LinearProgressIndicator
 import top.yukonga.miuix.kmp.basic.Surface
 import top.yukonga.miuix.kmp.basic.Text
 import top.yukonga.miuix.kmp.basic.TextField
+import top.yukonga.miuix.kmp.basic.TextFieldDefaults
 import top.yukonga.miuix.kmp.basic.TopAppBar
 import top.yukonga.miuix.kmp.theme.MiuixTheme
 
@@ -64,6 +66,7 @@ fun MiuixHomeScreen(
     uiState: HomeUiState,
     onToggleApp: (String) -> Unit,
     onInputChange: (String) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
     onTranslate: () -> Unit,
     onExecute: () -> Unit,
     onRequestPermission: () -> Unit,
@@ -166,8 +169,18 @@ fun MiuixHomeScreen(
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
             ) {
+                TextField(
+                    value = uiState.searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    colors = TextFieldDefaults.textFieldColors(borderColor = Color.Black),
+                    modifier = Modifier.fillMaxWidth(),
+                    label = "搜索应用",
+                    useLabelAsPlaceholder = true,
+                    singleLine = true
+                )
+
                 Text(
-                    text = "已选 ${uiState.selectedPackages.size}/${uiState.appList.size} 个应用",
+                    text = "已选 ${uiState.selectedPackages.size}/${uiState.filteredAppList.size} 个应用",
                     modifier = Modifier.padding(vertical = 4.dp)
                 )
 
@@ -177,8 +190,8 @@ fun MiuixHomeScreen(
                         .weight(0.35f),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    items(uiState.appList.size) { index ->
-                        val app = uiState.appList[index]
+                    items(uiState.filteredAppList.size) { index ->
+                        val app = uiState.filteredAppList[index]
                         MiuixAppCheckboxItem(
                             app = app,
                             isChecked = app.packageName in uiState.selectedPackages,
@@ -193,7 +206,10 @@ fun MiuixHomeScreen(
                 TextField(
                     value = uiState.naturalInput,
                     onValueChange = onInputChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    colors = TextFieldDefaults.textFieldColors(borderColor = Color.Black),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp, max = 200.dp),
                     label = "输入自然语言，如：禁用 kindle",
                     useLabelAsPlaceholder = true,
                     enabled = !uiState.isTranslating

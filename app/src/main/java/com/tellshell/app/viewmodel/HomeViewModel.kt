@@ -22,6 +22,7 @@ data class HomeUiState(
     val appList: List<AppInfo> = emptyList(),
     val selectedPackages: Set<String> = emptySet(),
     val naturalInput: String = "",
+    val searchQuery: String = "",
     val generatedCommand: String = "",
     val commandOutput: String = "",
     val isTranslating: Boolean = false,
@@ -29,7 +30,15 @@ data class HomeUiState(
     val errorMessage: String? = null,
     val permissionState: ShizukuExecutor.PermissionState = ShizukuExecutor.PermissionState.Idle,
     val permissionSource: String = ""
-)
+) {
+    /** 根据搜索词过滤的应用列表 */
+    val filteredAppList: List<AppInfo>
+        get() = if (searchQuery.isBlank()) appList
+        else appList.filter {
+            it.appName.contains(searchQuery, ignoreCase = true) ||
+            it.packageName.contains(searchQuery, ignoreCase = true)
+        }
+}
 
 class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -104,6 +113,11 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
             }
             state.copy(selectedPackages = newSelected)
         }
+    }
+
+    /** 更新搜索关键词 */
+    fun updateSearchQuery(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
     }
 
     /** 更新自然语言输入 */

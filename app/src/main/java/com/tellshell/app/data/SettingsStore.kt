@@ -18,6 +18,7 @@ class SettingsStore(private val context: Context) {
         private val KEY_API_KEY = stringPreferencesKey("api_key")
         private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         private val KEY_MODEL = stringPreferencesKey("model")
+        private val KEY_SYSTEM_PROMPT = stringPreferencesKey("system_prompt")
         private val KEY_ANALYSIS_PROMPT = stringPreferencesKey("analysis_prompt")
 
         const val DEFAULT_BASE_URL = "https://api.deepseek.com"
@@ -82,6 +83,17 @@ class SettingsStore(private val context: Context) {
     suspend fun saveModel(model: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_MODEL] = model
+        }
+    }
+
+    /** 系统提示词 */
+    val systemPrompt: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[KEY_SYSTEM_PROMPT] ?: ""
+    }
+
+    suspend fun saveSystemPrompt(prompt: String) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_SYSTEM_PROMPT] = prompt
         }
     }
 
