@@ -51,7 +51,7 @@ jobs:
           echo "KEY_PASSWORD=tellshell" >> $GITHUB_ENV
 
       - name: Build Release APK (${{ inputs.arch }})
-        run: ./gradlew assembleRelease -Pandroid.injected.abifilters=${{ inputs.arch }} --no-configuration-cache
+        run: ./gradlew assembleRelease -Pandroid.injected.abifilters=${{ inputs.arch }} --no-configuration-cache --parallel
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
