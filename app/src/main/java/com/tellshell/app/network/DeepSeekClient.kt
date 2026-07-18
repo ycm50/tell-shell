@@ -1,0 +1,324 @@
+package com.tellshell.app.network
+
+import com.google.gson.annotations.SerializedName
+import com.tellshell.app.data.HistoryItem
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.IOException
+import java.util.concurrent.TimeUnit
+
+/**
+ * DeepSeek Chat Completion API 客户端
+ * 兼容 OpenAI 格式
+ */
+class DeepSeekClient(
+    private val baseUrl: String = "https://api.deepseek.com",
+    private val apiKey: String = "",
+    private val model: String = "deepseek-chat",
+    private val chatMaxTokens: Int = 500,
+    private val temperature: Double = 0.1,
+    private val topP: Double = 1.0,
+    private val reasoningEffort: String = ""
+) {
+    private val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(30, TimeUnit.SECONDS)
+        .build()
+
+    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+
+    /**
+     * 调用 DeepSeek Chat Completion API，将自然语言转换为 shell 命令
+     */
+    suspend fun translateToCommand(
+        userInput: String,
+        appContext: String = "",
+        systemPrompt: String = SYSTEM_PROMPT
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            val prompt = buildPrompt(userInput, appContext)
+            val requestBody = ChatCompletionRequest(
+                model = model,
+                messages = listOf(
+                    Message(role = "system", content = systemPrompt),
+                    Message(role = "user", content = prompt)
+                ),
+                temperature = temperature,
+                topP = topP,
+                thinking = thinkingConfig(),
+                maxTokens = chatMaxTokens
+            )
+
+            val json = GsonProvider.gson.toJson(requestBody)
+            val body = json.toRequestBody(jsonMediaType)
+
+            val request = Request.Builder()
+                .url("${baseUrl.trimEnd('/')}/v1/chat/completions")
+                .addHeader("Authorization", "Bearer $apiKey")
+                .addHeader("Content-Type", "application/json")
+                .post(body)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val responseBody = response.body?.string() ?: ""
+
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(
+                    IOException("API error ${response.code}: $responseBody")
+                )
+            }
+
+            val chatResponse = GsonProvider.gson.fromJson(responseBody, ChatCompletionResponse::class.java)
+            val choice = chatResponse.choices?.firstOrNull()
+            var command = choice?.message?.content?.trim() ?: ""
+            // 如果 content 为空，尝试 reasoning_content（deepseek-reasoner 模型）
+            if (command.isBlank()) {
+                command = choice?.reasoningContent?.trim() ?: ""
+            }
+
+            if (command.isBlank()) {
+                val reason = choice?.finishReason?.let { " (finish_reason: $it)" } ?: ""
+                val snippet = responseBody.replace("\n", " ")
+                return@withContext Result.failure(
+                    IOException("API returned empty response$reason. Body: $snippet")
+                )
+            }
+
+            Result.success(command)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    private fun buildPrompt(userInput: String, appContext: String): String {
+        return buildString {
+            if (appContext.isNotBlank()) {
+                appendLine("Selected apps context:")
+                appendLine(appContext)
+                appendLine()
+            }
+            appendLine("User request: $userInput")
+        }
+    }
+
+    /** 根据 reasoningEffort 配置生成 thinking 对象 */
+    private fun thinkingConfig(): ThinkingConfig? {
+        if (reasoningEffort.isBlank() || reasoningEffort == "disabled") return null
+        return ThinkingConfig(
+            type = "enabled",
+            reasoningEffort = reasoningEffort
+        )
+    }
+
+    /**
+     * 获取可用模型列表
+     */
+    suspend fun listModels(): Result<List<String>> = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url("${baseUrl.trimEnd('/')}/v1/models")
+                .addHeader("Authorization", "Bearer $apiKey")
+                .get()
+                .build()
+
+            val response = client.newCall(request).execute()
+            val responseBody = response.body?.string() ?: ""
+
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(
+                    IOException("API error ${response.code}: $responseBody")
+                )
+            }
+
+            val modelResponse = GsonProvider.gson.fromJson(responseBody, ModelListResponse::class.java)
+            val modelIds = modelResponse.data?.map { it.id }?.filter { id ->
+                id.contains("deepseek") || id.contains("chat") || id.contains("reasoner")
+            } ?: emptyList()
+
+            if (modelIds.isEmpty()) {
+                return@withContext Result.failure(IOException("No available models found"))
+            }
+
+            Result.success(modelIds)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * 分析历史记录
+     * @param historyItems 要分析的历史条目
+     * @param requirement 用户的分析要求
+     * @param analysisPromptTemplate 分析提示词模板（含 {history} 和 {requirement} 占位符）
+     */
+    suspend fun analyzeHistory(
+        historyItems: List<HistoryItem>,
+        requirement: String,
+        analysisPromptTemplate: String
+    ): Result<String> = withContext(Dispatchers.IO) {
+        try {
+            // 构建历史记录文本
+            val historyText = historyItems.joinToString("\n---\n") { item ->
+                buildString {
+                    appendLine("时间: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(item.timestamp))}")
+                    appendLine("自然语言: ${item.naturalInput}")
+                    appendLine("命令: ${item.generatedCommand}")
+                    if (item.commandOutput.isNotBlank()) {
+                        appendLine("输出: ${item.commandOutput}")
+                    }
+                    if (item.appContext.isNotBlank()) {
+                        appendLine("选中的应用: ${item.appContext}")
+                    }
+                }
+            }
+
+            // 替换模板中的占位符
+            val prompt = analysisPromptTemplate
+                .replace("{history}", historyText)
+                .replace("{requirement}", requirement)
+
+            val requestBody = ChatCompletionRequest(
+                model = model,
+                messages = listOf(
+                    Message(role = "user", content = prompt)
+                ),
+                temperature = temperature,
+                topP = topP,
+                thinking = thinkingConfig(),
+                maxTokens = chatMaxTokens
+            )
+
+            val json = GsonProvider.gson.toJson(requestBody)
+            val body = json.toRequestBody(jsonMediaType)
+
+            val request = Request.Builder()
+                .url("${baseUrl.trimEnd('/')}/v1/chat/completions")
+                .addHeader("Authorization", "Bearer $apiKey")
+                .addHeader("Content-Type", "application/json")
+                .post(body)
+                .build()
+
+            val response = client.newCall(request).execute()
+            val responseBody = response.body?.string() ?: ""
+
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(
+                    IOException("API error ${response.code}: $responseBody")
+                )
+            }
+
+            val chatResponse = GsonProvider.gson.fromJson(responseBody, ChatCompletionResponse::class.java)
+            val choice = chatResponse.choices?.firstOrNull()
+            var result = choice?.message?.content?.trim() ?: ""
+            // 如果 content 为空，尝试 reasoning_content（deepseek-reasoner 模型）
+            if (result.isBlank()) {
+                result = choice?.reasoningContent?.trim() ?: ""
+            }
+
+            if (result.isBlank()) {
+                val reason = choice?.finishReason?.let { " (finish_reason: $it)" } ?: ""
+                val snippet = responseBody.replace("\n", " ")
+                return@withContext Result.failure(
+                    IOException("API returned empty response$reason. Body: $snippet")
+                )
+            }
+
+            Result.success(result)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    companion object {
+        /**
+         * 系统提示词 — 严格约束只输出 shell 命令
+         */
+        const val SYSTEM_PROMPT = """You are a shell command generator for Android 16.
+The user describes what they want to do in natural language. Selected app context may be provided.
+Your top priority is to GUESS the user's intent and produce a shell command — even if the description is vague or incomplete.
+
+CRITICAL RULES (most important first):
+- NEVER return an empty response. You MUST output something on every turn.
+- Output ONLY the raw shell command. No explanations, no markdown, no code blocks, no backticks.
+- If the request is unclear, unsafe, or cannot be expressed as a shell command, output: echo error: <brief reason>
+- If multiple commands are needed, join them with " && " or " ; ".
+- Use standard Android shell commands: pm, am, dumpsys, settings, input, wm, cmd, service, etc.
+- For selected apps, use their package names for package-related operations.
+- Never include anything outside the command itself.
+- Do NOT wrap the command in ``` or any other formatting."""
+    }
+}
+
+// === API 请求/响应模型 ===
+
+data class ChatCompletionRequest(
+    val model: String,
+    val messages: List<Message>,
+    val temperature: Double = 0.1,
+    @SerializedName("top_p")
+    val topP: Double = 1.0,
+    val thinking: ThinkingConfig? = null,
+    @SerializedName("max_tokens")
+    val maxTokens: Int = 500
+)
+
+data class ThinkingConfig(
+    val type: String = "enabled",
+    @SerializedName("reasoning_effort")
+    val reasoningEffort: String = "high"
+)
+
+data class Message(
+    val role: String,   // "system" or "user" or "assistant"
+    val content: String
+)
+
+data class ChatCompletionResponse(
+    val id: String? = null,
+    val choices: List<Choice>? = null,
+    val usage: Usage? = null
+)
+
+data class Choice(
+    val index: Int = 0,
+    val message: Message,
+    @SerializedName("finish_reason")
+    val finishReason: String? = null,
+    @SerializedName("reasoning_content")
+    val reasoningContent: String? = null
+)
+
+data class Usage(
+    @SerializedName("prompt_tokens")
+    val promptTokens: Int = 0,
+    @SerializedName("completion_tokens")
+    val completionTokens: Int = 0,
+    @SerializedName("total_tokens")
+    val totalTokens: Int = 0
+)
+
+/** 模型列表响应（兼容 OpenAI 格式） */
+data class ModelListResponse(
+    val data: List<ModelInfo>? = null
+)
+
+data class ModelInfo(
+    val id: String,
+    val ownedBy: String? = null
+)
+
+/**
+ * 懒加载 Gson 实例，避免重复创建
+ */
+internal object GsonProvider {
+    val gson by lazy {
+        com.google.gson.GsonBuilder()
+            .setLenient()
+            .create()
+    }
+}
