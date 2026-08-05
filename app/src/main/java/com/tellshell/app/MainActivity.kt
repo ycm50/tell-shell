@@ -123,6 +123,7 @@ class MainActivity : ComponentActivity() {
                                     uiState = uiState,
                                     onBaseUrlChange = viewModel::updateBaseUrl,
                                     onApiKeyChange = viewModel::updateApiKey,
+                                    onApiFormatChange = viewModel::updateApiFormat,
                                     onThemeModeChange = { mode ->
                                         viewModel.updateThemeMode(mode)
                                         scope.launch {
@@ -151,6 +152,7 @@ class MainActivity : ComponentActivity() {
                                     uiState = uiState,
                                     onBaseUrlChange = viewModel::updateBaseUrl,
                                     onApiKeyChange = viewModel::updateApiKey,
+                                    onApiFormatChange = viewModel::updateApiFormat,
                                     onThemeModeChange = { mode ->
                                         viewModel.updateThemeMode(mode)
                                         scope.launch {

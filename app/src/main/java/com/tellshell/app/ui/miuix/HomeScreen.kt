@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -167,12 +168,19 @@ fun MiuixHomeScreen(
                 }
             )
 
-            Column(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
                     .imePadding()
             ) {
+                val maxOutputHeight = maxHeight * outputWeight
+                val idle = uiState.generatedCommand.isBlank() &&
+                        uiState.commandOutput.isBlank() &&
+                        uiState.errorMessage == null
+                val scrollState = rememberScrollState()
+
+                Column(modifier = Modifier.fillMaxSize()) {
                 TextField(
                     value = uiState.searchQuery,
                     onValueChange = onSearchQueryChange,
@@ -211,7 +219,7 @@ fun MiuixHomeScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(0.35f),
+                        .weight(if (idle) 1f else 0.35f),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     items(uiState.filteredAppList.size) { index ->
@@ -224,10 +232,21 @@ fun MiuixHomeScreen(
                     }
                 }
 
-                Spacer(Modifier.height(8.dp))
+                // === 下方区域（空闲时输入框靠底部，有内容时整体滚动） ===
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (idle) Modifier else Modifier.weight(1f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(if (idle) Modifier else Modifier.verticalScroll(scrollState))
+                    ) {
+                    Spacer(Modifier.height(8.dp))
 
-                // TextField: Miuix 用 label 代替 placeholder
-                TextField(
+                    // TextField: Miuix 用 label 代替 placeholder
+                    TextField(
                     value = uiState.naturalInput,
                     onValueChange = onInputChange,
                     colors = TextFieldDefaults.textFieldColors(borderColor = Color.Black),
@@ -359,7 +378,7 @@ fun MiuixHomeScreen(
                         shape = RoundedCornerShape(8.dp),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(outputWeight)
+                            .heightIn(min = 80.dp, max = maxOutputHeight)
                     ) {
                         Column {
                             Row(
@@ -384,7 +403,7 @@ fun MiuixHomeScreen(
                                 val context = LocalContext.current
                                 Column(
                                     modifier = Modifier
-                                        .weight(1f)
+                                        .fillMaxWidth()
                                         .verticalScroll(scrollState)
                                 ) {
                                     top.yukonga.miuix.kmp.basic.Text(
@@ -405,6 +424,9 @@ fun MiuixHomeScreen(
                 }
             }
         }
+        }
+        }
+    }
     }
 }
 

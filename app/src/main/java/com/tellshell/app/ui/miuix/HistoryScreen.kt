@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -378,6 +379,30 @@ private fun MiuixHistoryItemCard(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    // 思考过程（可展开）
+                    item.thinking?.takeIf { it.isNotBlank() }?.let { thinking ->
+                        Spacer(Modifier.height(2.dp))
+                        var thinkingExpanded by remember { mutableStateOf(false) }
+                        Text(
+                            text = if (thinkingExpanded) "▾ 思考过程" else "▸ 思考过程",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { thinkingExpanded = !thinkingExpanded }
+                                .padding(vertical = 2.dp),
+                            fontSize = 11.sp,
+                            color = colorScheme.primary
+                        )
+                        if (thinkingExpanded) {
+                            Text(
+                                text = thinking,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 11.sp,
+                                maxLines = 8,
+                                overflow = TextOverflow.Ellipsis,
+                                color = colorScheme.onSecondary
+                            )
+                        }
+                    }
                     // 输出预览
                     if (!item.commandOutput.isNullOrBlank()) {
                         Spacer(Modifier.height(2.dp))

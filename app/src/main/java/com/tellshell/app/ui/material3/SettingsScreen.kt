@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import com.tellshell.app.data.SettingsStore
 import com.tellshell.app.data.ThemeMode
+import com.tellshell.app.network.ApiFormat
 import com.tellshell.app.viewmodel.SettingsUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,6 +55,7 @@ fun Material3SettingsScreen(
     uiState: SettingsUiState,
     onBaseUrlChange: (String) -> Unit,
     onApiKeyChange: (String) -> Unit,
+    onApiFormatChange: (ApiFormat) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onModelChange: (String) -> Unit,
     onRefreshModels: () -> Unit,
@@ -140,6 +142,48 @@ fun Material3SettingsScreen(
             )
 
             Spacer(Modifier.height(12.dp))
+
+            // === API 格式 ===
+            Text(
+                text = "API 格式",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(8.dp))
+
+            SingleChoiceSegmentedButtonRow(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                ApiFormat.entries.forEachIndexed { index, format ->
+                    SegmentedButton(
+                        selected = uiState.apiFormat == format,
+                        onClick = { onApiFormatChange(format) },
+                        shape = SegmentedButtonDefaults.itemShape(
+                            index = index,
+                            count = ApiFormat.entries.size
+                        )
+                    ) {
+                        Text(
+                            text = format.shortName,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = uiState.apiFormat.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "默认 BaseURL: ${uiState.apiFormat.defaultBaseUrl}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(16.dp))
 
             // === 模型选择 ===
             Text(

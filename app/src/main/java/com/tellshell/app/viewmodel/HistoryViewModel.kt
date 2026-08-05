@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.tellshell.app.data.HistoryItem
 import com.tellshell.app.data.HistoryStore
 import com.tellshell.app.data.SettingsStore
-import com.tellshell.app.network.DeepSeekClient
+import com.tellshell.app.network.AIClient
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -139,6 +139,7 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 val baseUrl = settingsStore.baseUrl.first()
                 val apiKey = settingsStore.apiKey.first()
                 val model = settingsStore.model.first()
+                val apiFormat = settingsStore.apiFormat.first()
                 val analysisPrompt = settingsStore.analysisPrompt.first()
                 val chatMaxTokens = settingsStore.chatMaxTokens.first()
                 val temperature = settingsStore.temperature.first()
@@ -152,11 +153,20 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     return@launch
                 }
 
-                val client = DeepSeekClient(baseUrl = baseUrl, apiKey = apiKey, model = model, chatMaxTokens = chatMaxTokens, temperature = temperature, topP = topP, reasoningEffort = reasoningEffort)
+                val client = AIClient(
+                    baseUrl = baseUrl,
+                    apiKey = apiKey,
+                    model = model,
+                    apiFormat = apiFormat,
+                    chatMaxTokens = chatMaxTokens,
+                    temperature = temperature,
+                    topP = topP,
+                    reasoningEffort = reasoningEffort
+                )
                 val result = client.analyzeHistory(selectedItems, requirement, analysisPrompt)
 
-                result.onSuccess { text ->
-                    _uiState.update { it.copy(isAnalyzing = false, analysisResult = text) }
+                result.onSuccess { aiResult ->
+                    _uiState.update { it.copy(isAnalyzing = false, analysisResult = aiResult.text) }
                 }.onFailure { error ->
                     _uiState.update {
                         it.copy(isAnalyzing = false, errorMessage = "分析失败: ${error.message}")

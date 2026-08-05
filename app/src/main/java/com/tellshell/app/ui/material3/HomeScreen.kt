@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
@@ -161,14 +162,21 @@ fun Material3HomeScreen(
                 )
             }
         ) { padding ->
-            Column(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
                     .padding(horizontal = 12.dp)
                     .imePadding()
             ) {
-                // === 应用搜索 ===
+                val maxOutputHeight = maxHeight * outputWeight
+                val idle = uiState.generatedCommand.isBlank() &&
+                        uiState.commandOutput.isBlank() &&
+                        uiState.errorMessage == null
+                val scrollState = rememberScrollState()
+
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // === 应用搜索（固定） ===
                 OutlinedTextField(
                     value = uiState.searchQuery,
                     onValueChange = onSearchQueryChange,
@@ -212,7 +220,7 @@ fun Material3HomeScreen(
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(0.35f),
+                        .weight(if (idle) 1f else 0.35f),
                     verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     items(uiState.filteredAppList.size) { index ->
@@ -225,10 +233,21 @@ fun Material3HomeScreen(
                     }
                 }
 
-                Spacer(Modifier.height(8.dp))
+                // === 下方区域（空闲时输入框靠底部，有内容时整体滚动） ===
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(if (idle) Modifier else Modifier.weight(1f))
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .then(if (idle) Modifier else Modifier.verticalScroll(scrollState))
+                    ) {
+                    Spacer(Modifier.height(8.dp))
 
-                // === 自然语言输入 ===
-                OutlinedTextField(
+                    // === 自然语言输入 ===
+                    OutlinedTextField(
                     value = uiState.naturalInput,
                     onValueChange = onInputChange,
                     colors = OutlinedTextFieldDefaults.colors(
@@ -379,7 +398,7 @@ fun Material3HomeScreen(
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(outputWeight)
+                            .heightIn(min = 80.dp, max = maxOutputHeight)
                     ) {
                         Column {
                             Row(
@@ -405,7 +424,7 @@ fun Material3HomeScreen(
                                 val context = LocalContext.current
                                 Column(
                                     modifier = Modifier
-                                        .weight(1f)
+                                        .fillMaxWidth()
                                         .verticalScroll(scrollState)
                                 ) {
                                     Text(
@@ -429,6 +448,9 @@ fun Material3HomeScreen(
                 }
             }
         }
+        }
+        }
+    }
     }
 }
 

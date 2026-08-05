@@ -11,6 +11,7 @@ data class HistoryItem(
     val generatedCommand: String,
     val commandOutput: String = "",
     val appContext: String = "",
+    val thinking: String? = null,
     val timestamp: Long = System.currentTimeMillis(),
     val analyzedText: String? = null
 )

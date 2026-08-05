@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.tellshell.app.network.ApiFormat
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -16,6 +17,7 @@ class SettingsStore(private val context: Context) {
     companion object {
         private val KEY_BASE_URL = stringPreferencesKey("base_url")
         private val KEY_API_KEY = stringPreferencesKey("api_key")
+        private val KEY_API_FORMAT = stringPreferencesKey("api_format")
         private val KEY_THEME_MODE = stringPreferencesKey("theme_mode")
         private val KEY_MODEL = stringPreferencesKey("model")
         private val KEY_SYSTEM_PROMPT = stringPreferencesKey("system_prompt")
@@ -28,7 +30,7 @@ class SettingsStore(private val context: Context) {
 
         const val DEFAULT_BASE_URL = "https://api.deepseek.com"
         const val DEFAULT_MODEL = "deepseek-chat"
-        const val DEFAULT_CHAT_MAX_TOKENS = 500
+        const val DEFAULT_CHAT_MAX_TOKENS = 2000
         const val DEFAULT_TEMPERATURE = 0.1
         const val DEFAULT_TOP_P = 1.0
 
@@ -63,6 +65,17 @@ class SettingsStore(private val context: Context) {
     suspend fun saveApiKey(key: String) {
         context.dataStore.edit { prefs ->
             prefs[KEY_API_KEY] = key
+        }
+    }
+
+    /** API 格式 */
+    val apiFormat: Flow<ApiFormat> = context.dataStore.data.map { prefs ->
+        ApiFormat.fromString(prefs[KEY_API_FORMAT])
+    }
+
+    suspend fun saveApiFormat(format: ApiFormat) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_API_FORMAT] = format.name
         }
     }
 

@@ -39,6 +39,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.TextStyle
 import com.tellshell.app.data.ThemeMode
+import com.tellshell.app.network.ApiFormat
 import com.tellshell.app.viewmodel.SettingsUiState
 import kotlinx.coroutines.delay
 import top.yukonga.miuix.kmp.basic.Button
@@ -57,6 +58,7 @@ fun MiuixSettingsScreen(
     uiState: SettingsUiState,
     onBaseUrlChange: (String) -> Unit,
     onApiKeyChange: (String) -> Unit,
+    onApiFormatChange: (ApiFormat) -> Unit,
     onThemeModeChange: (ThemeMode) -> Unit,
     onModelChange: (String) -> Unit,
     onRefreshModels: () -> Unit,
@@ -133,6 +135,39 @@ fun MiuixSettingsScreen(
             )
 
             Spacer(Modifier.height(24.dp))
+
+            // === API 格式 ===
+            Text(
+                text = "API 格式",
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                ApiFormat.entries.forEach { format ->
+                    val isSelected = uiState.apiFormat == format
+                    Button(
+                        onClick = { onApiFormatChange(format) },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = if (isSelected) "● ${format.shortName}" else format.shortName,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = "${uiState.apiFormat.description}\n默认 BaseURL: ${uiState.apiFormat.defaultBaseUrl}",
+                fontSize = 12.sp,
+                color = colorScheme.onSecondary
+            )
+
+            Spacer(Modifier.height(16.dp))
 
             // === 模型选择 ===
             Text(

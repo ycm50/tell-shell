@@ -135,7 +135,8 @@ test/
 │       │   ├── ThemeMode.kt          # 主题枚举
 │       │   └── SettingsStore.kt      # DataStore 封装
 │       ├── network/
-│       │   └── DeepSeekClient.kt     # DeepSeek API 客户端
+│       │   ├── ApiFormat.kt            # API 格式枚举（OpenAI/Responses/Anthropic/Gemini）
+│       │   └── AIClient.kt             # 多协议 AI API 客户端
 │       ├── shell/
 │       │   └── ShizukuExecutor.kt    # Shizuku/Sui 执行引擎
 │       ├── viewmodel/

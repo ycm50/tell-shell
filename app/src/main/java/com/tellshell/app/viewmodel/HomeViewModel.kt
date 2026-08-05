@@ -8,7 +8,8 @@ import com.tellshell.app.data.AppInfo
 import com.tellshell.app.data.HistoryItem
 import com.tellshell.app.data.HistoryStore
 import com.tellshell.app.data.SettingsStore
-import com.tellshell.app.network.DeepSeekClient
+import com.tellshell.app.network.AIClient
+import com.tellshell.app.network.ApiFormat
 import com.tellshell.app.shell.ShizukuExecutor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,11 +21,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** DeepSeekClient 完整配置，用于 combine 传参 */
+/** 基础 API 配置，用于 combine 嵌套 */
+data class ApiBaseConfig(
+    val baseUrl: String,
+    val apiKey: String,
+    val model: String,
+    val apiFormat: ApiFormat
+)
+
+/** AIClient 完整配置，用于 combine 传参 */
 data class ClientConfig(
     val baseUrl: String,
     val apiKey: String,
     val model: String,
+    val apiFormat: ApiFormat,
     val chatMaxTokens: Int,
     val temperature: Double,
     val topP: Double,
@@ -61,7 +71,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
     private val settingsStore = SettingsStore(application)
     private val historyStore = HistoryStore(application)
     private val executor = ShizukuExecutor()
-    private var deepSeekClient: DeepSeekClient? = null
+    private var aiClient: AIClient? = null
     private var lastHistoryItemId: String? = null
 
     init {
@@ -71,34 +81,47 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         updatePermissionState()
     }
 
-    /** 持续监听 API 配置变化，自动更新 DeepSeekClient */
+    /** 持续监听 API 配置变化，自动更新 AIClient */
     private fun observeApiConfig() {
         viewModelScope.launch {
             combine(
                 combine(
                     settingsStore.baseUrl,
                     settingsStore.apiKey,
-                    settingsStore.model
-                ) { a, b, c -> Triple(a, b, c) },
+                    settingsStore.model,
+                    settingsStore.apiFormat
+                ) { baseUrl, apiKey, model, apiFormat ->
+                    ApiBaseConfig(baseUrl, apiKey, model, apiFormat)
+                },
                 settingsStore.chatMaxTokens,
                 settingsStore.temperature,
                 settingsStore.topP,
                 settingsStore.reasoningEffort
-            ) { (baseUrl, apiKey, model), chatMaxTokens, temperature, topP, reasoningEffort ->
-                ClientConfig(baseUrl, apiKey, model, chatMaxTokens, temperature, topP, reasoningEffort)
+            ) { config, chatMaxTokens, temperature, topP, reasoningEffort ->
+                ClientConfig(
+                    baseUrl = config.baseUrl,
+                    apiKey = config.apiKey,
+                    model = config.model,
+                    apiFormat = config.apiFormat,
+                    chatMaxTokens = chatMaxTokens,
+                    temperature = temperature,
+                    topP = topP,
+                    reasoningEffort = reasoningEffort
+                )
             }.collectLatest { config ->
                 if (config.apiKey.isNotBlank()) {
-                    deepSeekClient = DeepSeekClient(
+                    aiClient = AIClient(
                         baseUrl = config.baseUrl,
                         apiKey = config.apiKey,
                         model = config.model,
+                        apiFormat = config.apiFormat,
                         chatMaxTokens = config.chatMaxTokens,
                         temperature = config.temperature,
                         topP = config.topP,
                         reasoningEffort = config.reasoningEffort
                     )
                 } else {
-                    deepSeekClient = null
+                    aiClient = null
                 }
             }
         }
@@ -226,7 +249,7 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
         val input = _uiState.value.naturalInput.trim()
         if (input.isBlank()) return
 
-        val client = deepSeekClient
+        val client = aiClient
         if (client == null) {
             _uiState.update { it.copy(errorMessage = "请先在设置中配置 API Key 和 BaseURL") }
             return
@@ -243,16 +266,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
 
             // 读取用户保存的自定义系统提示词，为空则使用默认值
             val systemPrompt = settingsStore.systemPrompt.first()
-                .ifBlank { DeepSeekClient.SYSTEM_PROMPT }
+                .ifBlank { AIClient.SYSTEM_PROMPT }
 
             val result = client.translateToCommand(input, appContext, systemPrompt)
-            result.onSuccess { command ->
-                _uiState.update { it.copy(generatedCommand = command, isTranslating = false) }
+            result.onSuccess { aiResult ->
+                // 只显示最终命令，思考过程仅记录到历史
+                _uiState.update { it.copy(generatedCommand = aiResult.text, isTranslating = false) }
                 // 保存到历史记录
                 val item = HistoryItem(
                     naturalInput = input,
-                    generatedCommand = command,
-                    appContext = appContext
+                    generatedCommand = aiResult.text,
+                    appContext = appContext,
+                    thinking = aiResult.reasoning
                 )
                 lastHistoryItemId = item.id
                 viewModelScope.launch {

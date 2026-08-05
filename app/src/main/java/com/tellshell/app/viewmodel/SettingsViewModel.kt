@@ -5,7 +5,8 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.tellshell.app.data.SettingsStore
 import com.tellshell.app.data.ThemeMode
-import com.tellshell.app.network.DeepSeekClient
+import com.tellshell.app.network.AIClient
+import com.tellshell.app.network.ApiFormat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -16,12 +17,13 @@ import kotlinx.coroutines.launch
 data class SettingsUiState(
     val baseUrl: String = SettingsStore.DEFAULT_BASE_URL,
     val apiKey: String = "",
+    val apiFormat: ApiFormat = ApiFormat.OPENAI_COMPATIBLE,
     val themeMode: ThemeMode = ThemeMode.MATERIAL3,
     val selectedModel: String = SettingsStore.DEFAULT_MODEL,
     val availableModels: List<String> = emptyList(),
     val isLoadingModels: Boolean = false,
     val modelError: String? = null,
-    val systemPrompt: String = DeepSeekClient.SYSTEM_PROMPT,
+    val systemPrompt: String = AIClient.SYSTEM_PROMPT,
     val analysisPrompt: String = SettingsStore.DEFAULT_ANALYSIS_PROMPT,
     val showAllApps: Boolean = false,
     val chatMaxTokens: Int = SettingsStore.DEFAULT_CHAT_MAX_TOKENS,
@@ -46,6 +48,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             val baseUrl = settingsStore.baseUrl.first()
             val apiKey = settingsStore.apiKey.first()
+            val apiFormat = settingsStore.apiFormat.first()
             val themeMode = settingsStore.themeMode.first()
             val model = settingsStore.model.first()
             val userSystemPrompt = settingsStore.systemPrompt.first()
@@ -60,9 +63,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                 it.copy(
                     baseUrl = baseUrl,
                     apiKey = apiKey,
+                    apiFormat = apiFormat,
                     themeMode = themeMode,
                     selectedModel = model,
-                    systemPrompt = userSystemPrompt.ifBlank { DeepSeekClient.SYSTEM_PROMPT },
+                    systemPrompt = userSystemPrompt.ifBlank { AIClient.SYSTEM_PROMPT },
                     analysisPrompt = analysisPrompt,
                     showAllApps = showAllApps,
                     chatMaxTokens = chatMaxTokens,
@@ -74,7 +78,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
             // 如果有 API Key，自动加载模型列表
             if (apiKey.isNotBlank()) {
-                loadModels(baseUrl, apiKey, model)
+                loadModels(baseUrl, apiKey, model, apiFormat)
             }
         }
     }
@@ -85,6 +89,10 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
 
     fun updateApiKey(key: String) {
         _uiState.update { it.copy(apiKey = key, isSaved = false) }
+    }
+
+    fun updateApiFormat(format: ApiFormat) {
+        _uiState.update { it.copy(apiFormat = format, isSaved = false) }
     }
 
     fun updateThemeMode(mode: ThemeMode) {
@@ -126,16 +134,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     /** 加载模型列表 */
     fun loadModels() {
         val state = _uiState.value
-        loadModels(state.baseUrl, state.apiKey, state.selectedModel)
+        loadModels(state.baseUrl, state.apiKey, state.selectedModel, state.apiFormat)
     }
 
-    private fun loadModels(baseUrl: String, apiKey: String, currentModel: String) {
+    private fun loadModels(baseUrl: String, apiKey: String, currentModel: String, apiFormat: ApiFormat) {
         if (apiKey.isBlank()) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoadingModels = true, modelError = null) }
 
-            val client = DeepSeekClient(baseUrl = baseUrl, apiKey = apiKey)
+            val client = AIClient(baseUrl = baseUrl, apiKey = apiKey, apiFormat = apiFormat)
             val result = client.listModels()
 
             result.onSuccess { models ->
@@ -163,6 +171,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val state = _uiState.value
             settingsStore.saveBaseUrl(state.baseUrl)
             settingsStore.saveApiKey(state.apiKey)
+            settingsStore.saveApiFormat(state.apiFormat)
             settingsStore.saveModel(state.selectedModel)
             settingsStore.saveThemeMode(state.themeMode)
             settingsStore.saveSystemPrompt(state.systemPrompt)
