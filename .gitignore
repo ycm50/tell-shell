@@ -37,11 +37,19 @@ build/
 *.class
 build-output/
 
-# 签名文件（切勿提交）
+# 签名文件
+# 默认忽略所有密钥；仅显式放行 app/tellshell-public.jks。
+# 该 keystore 是各平台通用的极简公开密钥（口令 123456 / 别名 key0），
+# 供 CI 与本地构建共用，不含任何私密信息。
 *.jks
 *.keystore
 debug.keystore
 keystore.properties
+!app/tellshell-public.jks
+
+# 密钥的 base64 导出等临时文件，绝不入库
+*base64*.txt
+*.keyb64
 
 # IDE / OS
 .idea/**/shelf.xml

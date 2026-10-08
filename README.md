@@ -130,7 +130,20 @@ Tell Shell 是一个 AI 辅助的 Shell 命令执行器，输入自然语言 →
 
 ## 签名配置
 
-签名信息**全部通过环境变量注入**，仓库中不保存任何密钥。
+项目内置了一份**公开的通用密钥**，CI 与本地构建开箱即用。
+
+| 项目 | 值 |
+|------|-----|
+| 文件 | [`app/tellshell-public.jks`](app/tellshell-public.jks) |
+| 格式 | PKCS12 |
+| 别名 | `key0` |
+| 口令 | `123456`（store 与 key 相同） |
+| 证书指纹 (SHA-256) | `F0:1E:C4:14:75:DF:F5:D2:09:37:11:E6:79:86:07:64:74:5F:CA:E9:03:7C:4B:73:11:7D:72:5E:F5:DC:95:C5` |
+
+> 这是各平台通用的极简公开密钥，**用于本地调试与 CI 出包，不具备保密性**。
+> 它已明确加入仓库，因此**无需配置任何 GitHub Secret**。
+
+如需改用自有密钥，设置环境变量即可覆盖（`.gitignore` 已默认忽略其他密钥文件）：
 
 | 环境变量 | 说明 |
 |----------|------|
@@ -139,18 +152,14 @@ Tell Shell 是一个 AI 辅助的 Shell 命令执行器，输入自然语言 →
 | `KEY_ALIAS` | 密钥别名 |
 | `KEY_PASSWORD` | 密钥口令 |
 
-未设置 `KEYSTORE_PATH` 时，release 构建会产出**未签名 APK**（不会静默回退到不存在的默认 keystore）。
-
-本机开发环境示例（PowerShell）：
-
 ```powershell
-$env:KEYSTORE_PATH = "C:\Users\Administrator\.gradle\my"
-$env:KEYSTORE_PASSWORD = "123456"
-$env:KEY_ALIAS = "key0"
-$env:KEY_PASSWORD = "123456"
+$env:KEYSTORE_PATH = "C:\path\to\your.jks"
+$env:KEYSTORE_PASSWORD = "..."
+$env:KEY_ALIAS = "..."
+$env:KEY_PASSWORD = "..."
 ```
 
-> 该 keystore 为 PKCS12 格式，store 与 key 使用同一口令。
+> ⚠️ 若要发布到应用商店，请务必换用你自己的正式密钥——公开密钥任何人可用来重新签名。
 
 ---
 
@@ -158,21 +167,7 @@ $env:KEY_PASSWORD = "123456"
 
 工作流：[`.github/workflows/build.yml`](.github/workflows/build.yml)，在 Actions 页面手动触发（`workflow_dispatch`），需填写版本标签与目标架构。
 
-**前置：需要在仓库 Settings → Secrets and variables → Actions 中配置 4 个 Secret**，否则构建会在「Restore release keystore」步骤明确报错退出：
-
-| Secret | 说明 |
-|--------|------|
-| `KEYSTORE_BASE64` | keystore 文件的 Base64 编码 |
-| `KEYSTORE_PASSWORD` | keystore 口令 |
-| `KEY_ALIAS` | 密钥别名 |
-| `KEY_PASSWORD` | 密钥口令 |
-
-生成 Base64（PowerShell）：
-
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\Users\Administrator\.gradle\my")) |
-  Set-Clipboard
-```
+**无需配置任何 Secret**，直接触发即可。
 
 构建环境要点：
 

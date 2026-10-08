@@ -19,26 +19,26 @@ android {
 
     signingConfigs {
         create("release") {
-            // 签名信息一律通过环境变量注入（CI 用 Secrets，本地可用系统环境变量）。
-            // 本机 keystore：C:\Users\Administrator\.gradle\my
-            //   alias = key0，store/key 口令 = 123456（PKCS12）
-            val ksPath = System.getenv("KEYSTORE_PATH")
-            if (!ksPath.isNullOrBlank()) {
-                storeFile = file(ksPath)
-                storePassword = System.getenv("KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS")
-                keyPassword = System.getenv("KEY_PASSWORD")
+            // 仓库内置的公开 keystore：各平台通用的极简公开密钥，
+            // 别名 key0 / 口令 123456（PKCS12），不含私密信息。
+            // 之所以入库，是为了让 CI 与本地构建开箱即用、无需配置任何 Secret。
+            // 如需改用自有密钥，设置环境变量 KEYSTORE_PATH / KEYSTORE_PASSWORD /
+            // KEY_ALIAS / KEY_PASSWORD 即可覆盖。
+            val envPath = System.getenv("KEYSTORE_PATH")
+            storeFile = if (!envPath.isNullOrBlank()) {
+                file(envPath)
+            } else {
+                rootProject.file("app/tellshell-public.jks")
             }
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "123456"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "key0"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "123456"
         }
     }
 
     buildTypes {
         release {
-            // 未提供 KEYSTORE_PATH 时不指定签名配置，
-            // 由 Gradle 产出未签名 APK，而不是静默回退到不存在的 debug.keystore
-            System.getenv("KEYSTORE_PATH")
-                ?.takeIf { it.isNotBlank() }
-                ?.let { signingConfig = signingConfigs.getByName("release") }
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

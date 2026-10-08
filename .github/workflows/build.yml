@@ -107,25 +107,26 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      # 签名：从仓库 Secret 还原 keystore，绝不把密钥写入仓库
-      - name: Restore release keystore
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      # 签名：使用仓库内的公开 keystore。
+      # app/tellshell-public.jks 是各平台通用的极简公开密钥
+      # （别名 key0，口令 123456，PKCS12），不含私密信息，故直接入库，
+      # 无需配置任何 GitHub Secret。
+      - name: Verify release keystore
         run: |
           set -euo pipefail
-          if [ -z "${KEYSTORE_BASE64:-}" ]; then
-            echo "::error::缺少 Secret KEYSTORE_BASE64，无法进行 release 签名"
+          KS="app/tellshell-public.jks"
+          if [ ! -f "$KS" ]; then
+            echo "::error::未找到签名文件 $KS"
             exit 1
           fi
-          mkdir -p "$RUNNER_TEMP/ks"
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/ks/release.jks"
-          echo "KEYSTORE_PATH=$RUNNER_TEMP/ks/release.jks" >> "$GITHUB_ENV"
+          echo "KEYSTORE_PATH=$GITHUB_WORKSPACE/$KS" >> "$GITHUB_ENV"
 
       - name: Build Release APK (${{ inputs.arch }})
         env:
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          # 公开密钥的固定口令（非机密）
+          KEYSTORE_PASSWORD: '123456'
+          KEY_ALIAS: 'key0'
+          KEY_PASSWORD: '123456'
         run: |
           # 本工程为纯 Kotlin/Java，无 native 代码，产物为通用 APK，
           # 因此 arch 仅用于命名标记，不做 ABI 过滤。
