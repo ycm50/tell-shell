@@ -19,16 +19,26 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(System.getenv("KEYSTORE_PATH") ?: rootProject.file("debug.keystore"))
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "android"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "androiddebugkey"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "android"
+            // 签名信息一律通过环境变量注入（CI 用 Secrets，本地可用系统环境变量）。
+            // 本机 keystore：C:\Users\Administrator\.gradle\my
+            //   alias = key0，store/key 口令 = 123456（PKCS12）
+            val ksPath = System.getenv("KEYSTORE_PATH")
+            if (!ksPath.isNullOrBlank()) {
+                storeFile = file(ksPath)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // 未提供 KEYSTORE_PATH 时不指定签名配置，
+            // 由 Gradle 产出未签名 APK，而不是静默回退到不存在的 debug.keystore
+            System.getenv("KEYSTORE_PATH")
+                ?.takeIf { it.isNotBlank() }
+                ?.let { signingConfig = signingConfigs.getByName("release") }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

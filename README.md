@@ -126,8 +126,62 @@ Tell Shell 是一个 AI 辅助的 Shell 命令执行器，输入自然语言 →
 - **Run** 直接安装到设备调试；
 - **Build → Generate Signed App Bundle / APK** 打包发布版。
 
-发布版使用 `app/build.gradle.kts` 中的 `release` 签名配置，可通过环境变量覆盖：
-`KEYSTORE_PATH` / `KEYSTORE_PASSWORD` / `KEY_ALIAS` / `KEY_PASSWORD`。
+---
+
+## 签名配置
+
+签名信息**全部通过环境变量注入**，仓库中不保存任何密钥。
+
+| 环境变量 | 说明 |
+|----------|------|
+| `KEYSTORE_PATH` | keystore 文件路径 |
+| `KEYSTORE_PASSWORD` | keystore 口令 |
+| `KEY_ALIAS` | 密钥别名 |
+| `KEY_PASSWORD` | 密钥口令 |
+
+未设置 `KEYSTORE_PATH` 时，release 构建会产出**未签名 APK**（不会静默回退到不存在的默认 keystore）。
+
+本机开发环境示例（PowerShell）：
+
+```powershell
+$env:KEYSTORE_PATH = "C:\Users\Administrator\.gradle\my"
+$env:KEYSTORE_PASSWORD = "123456"
+$env:KEY_ALIAS = "key0"
+$env:KEY_PASSWORD = "123456"
+```
+
+> 该 keystore 为 PKCS12 格式，store 与 key 使用同一口令。
+
+---
+
+## CI 自动构建
+
+工作流：[`.github/workflows/build.yml`](.github/workflows/build.yml)，在 Actions 页面手动触发（`workflow_dispatch`），需填写版本标签与目标架构。
+
+**前置：需要在仓库 Settings → Secrets and variables → Actions 中配置 4 个 Secret**，否则构建会在「Restore release keystore」步骤明确报错退出：
+
+| Secret | 说明 |
+|--------|------|
+| `KEYSTORE_BASE64` | keystore 文件的 Base64 编码 |
+| `KEYSTORE_PASSWORD` | keystore 口令 |
+| `KEY_ALIAS` | 密钥别名 |
+| `KEY_PASSWORD` | 密钥口令 |
+
+生成 Base64（PowerShell）：
+
+```powershell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("C:\Users\Administrator\.gradle\my")) |
+  Set-Clipboard
+```
+
+构建环境要点：
+
+- **JDK 21** —— 与 `gradle/gradle-daemon-jvm.properties` 中的 `toolchainVersion=21` 保持一致；
+- **Android SDK** —— 显式安装 `platform-tools`、`platforms;android-37.0/37.1/37.2`、`build-tools;37.0.0`；
+- ⚠️ **`platforms;android-37` 这个包并不存在**。Android 37 起平台包带次版本号，只有
+  `platforms;android-37.0` / `37.1` / `37.2`（本地 SDK 目录名为 `android-37.0`、`android-37.1`，
+  同样没有 `android-37`）。写错包名会导致 `sdkmanager` 立即失败；
+- 产物为**通用 APK**：本工程为纯 Kotlin/Java，无 native 代码，`架构` 参数仅用于文件命名。
 
 ---
 
