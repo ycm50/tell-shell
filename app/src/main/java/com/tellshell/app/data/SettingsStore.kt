@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.tellshell.app.network.ApiFormat
+import com.tellshell.app.network.ReasoningEffort
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -27,6 +28,8 @@ class SettingsStore(private val context: Context) {
         private val KEY_TEMPERATURE = stringPreferencesKey("temperature")
         private val KEY_TOP_P = stringPreferencesKey("top_p")
         private val KEY_REASONING_EFFORT = stringPreferencesKey("reasoning_effort")
+        private val KEY_SEND_OPENCODE_SESSION = stringPreferencesKey("send_opencode_session")
+        private val KEY_OPENCODE_REASONING = stringPreferencesKey("opencode_reasoning_effort")
 
         const val DEFAULT_BASE_URL = "https://api.deepseek.com"
         const val DEFAULT_MODEL = "deepseek-chat"
@@ -173,14 +176,47 @@ class SettingsStore(private val context: Context) {
         }
     }
 
-    /** Reasoning Effort（思考深度） */
-    val reasoningEffort: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[KEY_REASONING_EFFORT] ?: ""
+    /** Reasoning Effort（思考深度），取值对齐 DeepSeek 官方枚举 */
+    val reasoningEffort: Flow<ReasoningEffort> = context.dataStore.data.map { prefs ->
+        ReasoningEffort.fromString(prefs[KEY_REASONING_EFFORT])
     }
 
-    suspend fun saveReasoningEffort(value: String) {
+    suspend fun saveReasoningEffort(value: ReasoningEffort) {
         context.dataStore.edit { prefs ->
-            prefs[KEY_REASONING_EFFORT] = value
+            prefs[KEY_REASONING_EFFORT] = value.value
+        }
+    }
+
+    /**
+     * 是否使用 OpenCode 侧的思考深度枚举（默认关闭）。
+     *
+     * OpenCode 官方 variant 枚举与 DeepSeek 不完全一致：
+     * OpenAI 系为 none/minimal/low/medium/high/xhigh，没有 max。
+     * 开启后把档位映射到 OpenCode 可接受的取值。
+     */
+    val opencodeReasoningEffort: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_OPENCODE_REASONING] == "true"
+    }
+
+    suspend fun saveOpencodeReasoningEffort(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_OPENCODE_REASONING] = enabled.toString()
+        }
+    }
+
+    /**
+     * 是否发送 x-opencode-session 会话头（默认关闭）
+     *
+     * OpenCode Zen / Go 网关要求每个会话携带稳定的会话 ID，缺失时返回
+     * HTTP 400 MissingSessionID。默认关闭以免影响其他服务商。
+     */
+    val sendOpencodeSession: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[KEY_SEND_OPENCODE_SESSION] == "true"
+    }
+
+    suspend fun saveSendOpencodeSession(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[KEY_SEND_OPENCODE_SESSION] = enabled.toString()
         }
     }
 }

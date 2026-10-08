@@ -145,6 +145,8 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                 val temperature = settingsStore.temperature.first()
                 val topP = settingsStore.topP.first()
                 val reasoningEffort = settingsStore.reasoningEffort.first()
+                val sendOpencodeSession = settingsStore.sendOpencodeSession.first()
+                val opencodeReasoningEffort = settingsStore.opencodeReasoningEffort.first()
 
                 if (apiKey.isBlank()) {
                     _uiState.update {
@@ -161,15 +163,23 @@ class HistoryViewModel(application: Application) : AndroidViewModel(application)
                     chatMaxTokens = chatMaxTokens,
                     temperature = temperature,
                     topP = topP,
-                    reasoningEffort = reasoningEffort
+                    reasoningEffort = reasoningEffort,
+                    sendOpencodeSession = sendOpencodeSession,
+                    opencodeReasoningEffort = opencodeReasoningEffort
                 )
                 val result = client.analyzeHistory(selectedItems, requirement, analysisPrompt)
 
                 result.onSuccess { aiResult ->
                     _uiState.update { it.copy(isAnalyzing = false, analysisResult = aiResult.text) }
                 }.onFailure { error ->
+                    val message = error.message
+                    val hint = if (AIClient.isMissingOpencodeSessionError(message)) {
+                        "\n\n提示：这是 OpenCode 网关要求会话头的报错，请到「设置」中打开「发送 OpenCode 会话头」后重试。"
+                    } else {
+                        ""
+                    }
                     _uiState.update {
-                        it.copy(isAnalyzing = false, errorMessage = "分析失败: ${error.message}")
+                        it.copy(isAnalyzing = false, errorMessage = "分析失败: $message$hint")
                     }
                 }
             } catch (e: Exception) {

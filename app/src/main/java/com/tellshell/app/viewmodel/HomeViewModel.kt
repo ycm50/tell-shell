@@ -10,6 +10,7 @@ import com.tellshell.app.data.HistoryStore
 import com.tellshell.app.data.SettingsStore
 import com.tellshell.app.network.AIClient
 import com.tellshell.app.network.ApiFormat
+import com.tellshell.app.network.ReasoningEffort
 import com.tellshell.app.shell.ShizukuExecutor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -38,7 +39,9 @@ data class ClientConfig(
     val chatMaxTokens: Int,
     val temperature: Double,
     val topP: Double,
-    val reasoningEffort: String
+    val reasoningEffort: ReasoningEffort,
+    val sendOpencodeSession: Boolean,
+    val opencodeReasoningEffort: Boolean
 )
 
 data class HomeUiState(
@@ -93,20 +96,28 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                 ) { baseUrl, apiKey, model, apiFormat ->
                     ApiBaseConfig(baseUrl, apiKey, model, apiFormat)
                 },
-                settingsStore.chatMaxTokens,
-                settingsStore.temperature,
-                settingsStore.topP,
-                settingsStore.reasoningEffort
-            ) { config, chatMaxTokens, temperature, topP, reasoningEffort ->
+                combine(
+                    settingsStore.chatMaxTokens,
+                    settingsStore.temperature,
+                    settingsStore.topP
+                ) { chatMaxTokens, temperature, topP ->
+                    Triple(chatMaxTokens, temperature, topP)
+                },
+                settingsStore.reasoningEffort,
+                settingsStore.sendOpencodeSession,
+                settingsStore.opencodeReasoningEffort
+            ) { config, sampling, reasoningEffort, sendOpencodeSession, opencodeReasoningEffort ->
                 ClientConfig(
                     baseUrl = config.baseUrl,
                     apiKey = config.apiKey,
                     model = config.model,
                     apiFormat = config.apiFormat,
-                    chatMaxTokens = chatMaxTokens,
-                    temperature = temperature,
-                    topP = topP,
-                    reasoningEffort = reasoningEffort
+                    chatMaxTokens = sampling.first,
+                    temperature = sampling.second,
+                    topP = sampling.third,
+                    reasoningEffort = reasoningEffort,
+                    sendOpencodeSession = sendOpencodeSession,
+                    opencodeReasoningEffort = opencodeReasoningEffort
                 )
             }.collectLatest { config ->
                 if (config.apiKey.isNotBlank()) {
@@ -118,7 +129,9 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                         chatMaxTokens = config.chatMaxTokens,
                         temperature = config.temperature,
                         topP = config.topP,
-                        reasoningEffort = config.reasoningEffort
+                        reasoningEffort = config.reasoningEffort,
+                        sendOpencodeSession = config.sendOpencodeSession,
+                        opencodeReasoningEffort = config.opencodeReasoningEffort
                     )
                 } else {
                     aiClient = null
@@ -284,7 +297,18 @@ class HomeViewModel(application: Application) : AndroidViewModel(application) {
                     historyStore.addItem(item)
                 }
             }.onFailure { error ->
-                _uiState.update { it.copy(errorMessage = "翻译失败: ${error.message}", isTranslating = false) }
+                val message = error.message
+                val hint = if (AIClient.isMissingOpencodeSessionError(message)) {
+                    "\n\n提示：这是 OpenCode 网关要求会话头的报错，请到「设置」中打开「发送 OpenCode 会话头」后重试。"
+                } else {
+                    ""
+                }
+                _uiState.update {
+                    it.copy(
+                        errorMessage = "翻译失败: $message$hint",
+                        isTranslating = false
+                    )
+                }
             }
         }
     }

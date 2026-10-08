@@ -20,3 +20,30 @@ local.properties
 .reasonix/
 log.txt
 app/release/
+
+# Kotlin 编译器 / 增量编译缓存
+.kotlin/
+.kotlin/**
+**/.kotlin/
+
+# 构建产物
+build/
+**/build/
+/out/
+*.apk
+*.aab
+*.ap_
+*.dex
+*.class
+build-output/
+
+# 签名文件（切勿提交）
+*.jks
+*.keystore
+debug.keystore
+keystore.properties
+
+# IDE / OS
+.idea/**/shelf.xml
+*.hprof
+Thumbs.db

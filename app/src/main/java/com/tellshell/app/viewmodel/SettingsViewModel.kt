@@ -7,6 +7,7 @@ import com.tellshell.app.data.SettingsStore
 import com.tellshell.app.data.ThemeMode
 import com.tellshell.app.network.AIClient
 import com.tellshell.app.network.ApiFormat
+import com.tellshell.app.network.ReasoningEffort
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,7 +30,9 @@ data class SettingsUiState(
     val chatMaxTokens: Int = SettingsStore.DEFAULT_CHAT_MAX_TOKENS,
     val temperature: Double = SettingsStore.DEFAULT_TEMPERATURE,
     val topP: Double = SettingsStore.DEFAULT_TOP_P,
-    val reasoningEffort: String = "",
+    val reasoningEffort: ReasoningEffort = ReasoningEffort.DEFAULT,
+    val sendOpencodeSession: Boolean = false,
+    val opencodeReasoningEffort: Boolean = false,
     val isSaved: Boolean = false
 )
 
@@ -58,6 +61,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             val temperature = settingsStore.temperature.first()
             val topP = settingsStore.topP.first()
             val reasoningEffort = settingsStore.reasoningEffort.first()
+            val sendOpencodeSession = settingsStore.sendOpencodeSession.first()
+            val opencodeReasoningEffort = settingsStore.opencodeReasoningEffort.first()
 
             _uiState.update {
                 it.copy(
@@ -72,7 +77,9 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
                     chatMaxTokens = chatMaxTokens,
                     temperature = temperature,
                     topP = topP,
-                    reasoningEffort = reasoningEffort
+                    reasoningEffort = reasoningEffort,
+                    sendOpencodeSession = sendOpencodeSession,
+                    opencodeReasoningEffort = opencodeReasoningEffort
                 )
             }
 
@@ -127,8 +134,16 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
         _uiState.update { it.copy(topP = value, isSaved = false) }
     }
 
-    fun updateReasoningEffort(value: String) {
+    fun updateReasoningEffort(value: ReasoningEffort) {
         _uiState.update { it.copy(reasoningEffort = value, isSaved = false) }
+    }
+
+    fun updateSendOpencodeSession(enabled: Boolean) {
+        _uiState.update { it.copy(sendOpencodeSession = enabled, isSaved = false) }
+    }
+
+    fun updateOpencodeReasoningEffort(enabled: Boolean) {
+        _uiState.update { it.copy(opencodeReasoningEffort = enabled, isSaved = false) }
     }
 
     /** 加载模型列表 */
@@ -181,6 +196,8 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
             settingsStore.saveTemperature(state.temperature)
             settingsStore.saveTopP(state.topP)
             settingsStore.saveReasoningEffort(state.reasoningEffort)
+            settingsStore.saveSendOpencodeSession(state.sendOpencodeSession)
+            settingsStore.saveOpencodeReasoningEffort(state.opencodeReasoningEffort)
             _uiState.update { it.copy(isSaved = true) }
         }
     }

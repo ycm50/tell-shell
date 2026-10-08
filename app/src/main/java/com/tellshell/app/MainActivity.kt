@@ -139,6 +139,8 @@ class MainActivity : ComponentActivity() {
                                     onTemperatureChange = viewModel::updateTemperature,
                                     onTopPChange = viewModel::updateTopP,
                                     onReasoningEffortChange = viewModel::updateReasoningEffort,
+                                    onSendOpencodeSessionChange = viewModel::updateSendOpencodeSession,
+                                    onOpencodeReasoningEffortChange = viewModel::updateOpencodeReasoningEffort,
                                     onSave = {
                                         viewModel.saveSettings()
                                     },
@@ -168,6 +170,8 @@ class MainActivity : ComponentActivity() {
                                     onTemperatureChange = viewModel::updateTemperature,
                                     onTopPChange = viewModel::updateTopP,
                                     onReasoningEffortChange = viewModel::updateReasoningEffort,
+                                    onSendOpencodeSessionChange = viewModel::updateSendOpencodeSession,
+                                    onOpencodeReasoningEffortChange = viewModel::updateOpencodeReasoningEffort,
                                     onSave = {
                                         viewModel.saveSettings()
                                     },

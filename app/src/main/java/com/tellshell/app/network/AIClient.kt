@@ -12,6 +12,7 @@ import java.io.IOException
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.UUID
 import java.util.concurrent.TimeUnit
 
 /**
@@ -31,8 +32,17 @@ class AIClient(
     private val chatMaxTokens: Int = 2000,
     private val temperature: Double = 0.1,
     private val topP: Double = 1.0,
-    private val reasoningEffort: String = ""
+    private val reasoningEffort: ReasoningEffort = ReasoningEffort.DEFAULT,
+    private val sendOpencodeSession: Boolean = false,
+    private val opencodeReasoningEffort: Boolean = false
 ) {
+    /**
+     * OpenCode Zen / Go 网关要求的稳定会话 ID。
+     * 每个 AIClient 实例对应一个会话，因此懒加载生成一次并在该实例的
+     * 所有请求中复用，保证同会话内路由/提示词缓存稳定。
+     */
+    private val opencodeSessionId: String by lazy { generateOpencodeSessionId() }
+
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)
@@ -81,6 +91,7 @@ class AIClient(
                     .addHeader("Content-Type", "application/json")
                     .post(body)
                 headers.forEach { (key, value) -> builder.addHeader(key, value) }
+                applyOpencodeSessionHeader(builder)
 
                 val response = client.newCall(builder.build()).execute()
                 val responseBody = response.body?.string() ?: ""
@@ -135,6 +146,7 @@ class AIClient(
                     temperature = temperature,
                     topP = topP,
                     thinking = thinkingConfig(),
+                    reasoningEffort = resolvedReasoningEffort(),
                     maxTokens = chatMaxTokens
                 )
                 Triple(
@@ -278,26 +290,25 @@ class AIClient(
     suspend fun listModels(): Result<List<String>> = withContext(Dispatchers.IO) {
         try {
             val base = baseUrl.trimEnd('/')
-            val request = when (apiFormat) {
+            val requestBuilder = when (apiFormat) {
                 ApiFormat.OPENAI_COMPATIBLE, ApiFormat.OPENAI_RESPONSES ->
                     Request.Builder()
                         .url("$base/v1/models")
                         .addHeader("Authorization", "Bearer $apiKey")
                         .get()
-                        .build()
                 ApiFormat.ANTHROPIC ->
                     Request.Builder()
                         .url("$base/v1/models")
                         .addHeader("x-api-key", apiKey)
                         .addHeader("anthropic-version", ANTHROPIC_VERSION)
                         .get()
-                        .build()
                 ApiFormat.GEMINI ->
                     Request.Builder()
                         .url("$base/v1beta/models?pageSize=100&key=$apiKey")
                         .get()
-                        .build()
             }
+            applyOpencodeSessionHeader(requestBuilder)
+            val request = requestBuilder.build()
 
             val response = client.newCall(request).execute()
             val responseBody = response.body?.string() ?: ""
@@ -421,23 +432,67 @@ class AIClient(
             .replace("{requirement}", requirement)
     }
 
-    /** OpenAI 兼容格式的 thinking 配置（DeepSeek reasoner） */
-    private fun thinkingConfig(): ThinkingConfig? {
-        if (reasoningEffort.isBlank() || reasoningEffort == "disabled") return null
-        return ThinkingConfig(
-            type = "enabled",
-            reasoningEffort = reasoningEffort
-        )
+    /**
+     * 按需注入 OpenCode 会话头。
+     *
+     * OpenCode Zen / Go 网关要求客户端为每个会话发送稳定的
+     * `x-opencode-session`，否则返回 400 MissingSessionID。
+     */
+    private fun applyOpencodeSessionHeader(builder: Request.Builder) {
+        if (sendOpencodeSession) {
+            builder.addHeader(OPENCODE_SESSION_HEADER, opencodeSessionId)
+        }
     }
+
+    /** 生成一个随机且足够唯一的会话 ID */
+    private fun generateOpencodeSessionId(): String =
+        "tellshell-" + UUID.randomUUID().toString().replace("-", "")
+
+    /**
+     * OpenAI 兼容格式的 thinking 字段（DeepSeek）。
+     *
+     * 官方规范：thinking.type 为 `enabled` / `disabled`。
+     * 关闭思考时显式发送 `disabled`，而不是省略字段——因为 DeepSeek
+     * 侧 thinking 的**默认值是 enabled**，省略并不会关闭思考。
+     */
+    private fun thinkingConfig(): ThinkingConfig? = ThinkingConfig(
+        type = if (reasoningEffort.isThinking) "enabled" else "disabled"
+    )
+
+    /**
+     * 请求体顶层的 reasoning_effort 取值。
+     *
+     * 对齐 DeepSeek 官方枚举 none / low / high / max。
+     * 若开启 OpenCode 兼容开关，则改用 OpenCode 侧的等价枚举
+     * （OpenCode 没有 max，最高档为 xhigh）。
+     */
+    private fun resolvedReasoningEffort(): String =
+        if (opencodeReasoningEffort) reasoningEffort.opencodeValue
+        else reasoningEffort.value
 
     /** OpenAI Responses 格式的 reasoning 配置 */
     private fun reasoningConfig(): Reasoning? {
-        if (reasoningEffort.isBlank() || reasoningEffort == "disabled") return null
-        return Reasoning(effort = reasoningEffort)
+        // Responses 接口不接受 none，关闭思考时直接不发送 reasoning 字段
+        if (!reasoningEffort.isThinking) return null
+        return Reasoning(effort = reasoningEffort.value)
     }
 
     companion object {
         private const val ANTHROPIC_VERSION = "2023-06-01"
+
+        /** OpenCode Zen / Go 网关要求的会话头名称 */
+        const val OPENCODE_SESSION_HEADER = "x-opencode-session"
+
+        /**
+         * 判断错误信息是否属于 OpenCode 缺失会话头导致的 400，
+         * 用于在 UI 上引导用户打开「发送 OpenCode 会话头」开关。
+         */
+        fun isMissingOpencodeSessionError(message: String?): Boolean {
+            if (message.isNullOrBlank()) return false
+            val lower = message.lowercase()
+            return lower.contains("missingsessionid") ||
+                (lower.contains("x-opencode-session") && lower.contains("400"))
+        }
 
         /** Anthropic 官方未提供模型列表接口，这里给出常用模型作为回退 */
         val DEFAULT_ANTHROPIC_MODELS = listOf(
@@ -497,15 +552,23 @@ data class ChatCompletionRequest(
     val temperature: Double = 0.1,
     @SerializedName("top_p")
     val topP: Double = 1.0,
+    /**
+     * 思考模式开关。DeepSeek 官方规范中 thinking 与 reasoning_effort 是
+     * 两个并列的顶层字段，因此这里不再把 reasoning_effort 嵌套进来。
+     */
     val thinking: ThinkingConfig? = null,
+    /**
+     * 思考深度。合法值 none / low / high / max（none 关闭思考）。
+     * 与 thinking 平级，位于请求体顶层。
+     */
+    @SerializedName("reasoning_effort")
+    val reasoningEffort: String? = null,
     @SerializedName("max_tokens")
     val maxTokens: Int = 2000
 )
 
 data class ThinkingConfig(
-    val type: String = "enabled",
-    @SerializedName("reasoning_effort")
-    val reasoningEffort: String = "high"
+    val type: String = "enabled"
 )
 
 data class Message(

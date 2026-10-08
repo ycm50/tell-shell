@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.TextStyle
 import com.tellshell.app.data.ThemeMode
 import com.tellshell.app.network.ApiFormat
+import com.tellshell.app.network.ReasoningEffort
 import com.tellshell.app.viewmodel.SettingsUiState
 import kotlinx.coroutines.delay
 import top.yukonga.miuix.kmp.basic.Button
@@ -68,7 +69,9 @@ fun MiuixSettingsScreen(
     onChatMaxTokensChange: (Int) -> Unit,
     onTemperatureChange: (Double) -> Unit,
     onTopPChange: (Double) -> Unit,
-    onReasoningEffortChange: (String) -> Unit,
+    onReasoningEffortChange: (ReasoningEffort) -> Unit,
+    onSendOpencodeSessionChange: (Boolean) -> Unit,
+    onOpencodeReasoningEffortChange: (Boolean) -> Unit,
     onSave: () -> Unit,
     onBack: () -> Unit
 ) {
@@ -278,31 +281,82 @@ fun MiuixSettingsScreen(
             )
             Spacer(Modifier.height(8.dp))
 
-            val efforts = listOf("disabled" to "关闭", "high" to "高", "max" to "最高")
+            val efforts = ReasoningEffort.entries
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                efforts.forEach { (value, label) ->
+                efforts.forEach { effort ->
                     Button(
-                        onClick = { onReasoningEffortChange(value) },
+                        onClick = { onReasoningEffortChange(effort) },
                         modifier = Modifier.weight(1f)
                     ) {
-                        if (uiState.reasoningEffort == value) {
-                            Text("● $label")
+                        if (uiState.reasoningEffort == effort) {
+                            Text("● ${effort.label}")
                         } else {
-                            Text(label)
+                            Text(effort.label)
                         }
                     }
                 }
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                text = when (uiState.reasoningEffort) {
-                    "disabled" -> "不使用思考模式，响应更快"
-                    "high" -> "默认思考深度"
-                    "max" -> "最深思考，适合复杂任务"
-                    else -> ""
+                text = uiState.reasoningEffort.description,
+                fontSize = 12.sp,
+                color = colorScheme.onSecondary
+            )
+
+            Spacer(Modifier.height(24.dp))
+
+            // === OpenCode 会话头 ===
+            Text(
+                text = "OpenCode 兼容"
+            )
+            Spacer(Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "发送 OpenCode 会话头"
+                )
+                top.yukonga.miuix.kmp.basic.Switch(
+                    checked = uiState.sendOpencodeSession,
+                    onCheckedChange = onSendOpencodeSessionChange
+                )
+            }
+            Text(
+                text = if (uiState.sendOpencodeSession) {
+                    "每个会话会附带稳定的 x-opencode-session 请求头，用于 OpenCode Zen / Go"
+                } else {
+                    "关闭时不发送该请求头；使用 OpenCode 报 400 MissingSessionID 时请打开"
+                },
+                fontSize = 12.sp,
+                color = colorScheme.onSecondary
+            )
+
+            Spacer(Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = "使用 OpenCode 思考档位"
+                )
+                top.yukonga.miuix.kmp.basic.Switch(
+                    checked = uiState.opencodeReasoningEffort,
+                    onCheckedChange = onOpencodeReasoningEffortChange
+                )
+            }
+            Text(
+                text = if (uiState.opencodeReasoningEffort) {
+                    "档位映射为 OpenCode 枚举（none/low/high，最高档使用 xhigh）"
+                } else {
+                    "按 DeepSeek 官方枚举发送（none/low/high/max）"
                 },
                 fontSize = 12.sp,
                 color = colorScheme.onSecondary
